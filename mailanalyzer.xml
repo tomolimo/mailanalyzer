@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+   <name>Mail Analyzer</name>
+   <key>mailanalyzer</key>
+   <state>stable</state>
+   <description>
+      <short>
+         <en><![CDATA[Mail Analyzer GLPI Plugin may be used to automatically combine CC mails into one Ticket]]></en>
+      </short>
+      <long>
+         <en><![CDATA[This solves the problem of duplicated Tickets when an email is sent to GLPI and CC to others, and when those CC recipees use 'Reply to All', GLPI by default will create a new ticket. See: http://glpi.userecho.com/topic/1090667-new-rule-criteria-for-mail-receivers/.
+		 In case of ping pong emails it will add the replies as followups to the Ticket initially created by the first email.]]></en>
+      </long>
+   </description>
+   <homepage>https://github.com/tomolimo/mailanalyzer</homepage>
+   <download>https://github.com/tomolimo/mailanalyzer/releases</download>
+   <issues>https://github.com/tomolimo/mailanalyzer/issues</issues>
+   <readme>https://github.com/tomolimo/mailanalyzer/wiki</readme>
+   <authors>
+      <author>Olivier Moron</author>
+   </authors>
+   <versions>
+   <version>
+          <num>1.2.1.0</num>
+          <compatibility>0.83</compatibility>
+      </version>
+   <version>
+          <num>1.2.1.0</num>
+          <compatibility>0.84</compatibility>
+      </version>
+   <version>
+          <num>1.2.1.0</num>
+          <compatibility>0.85</compatibility>
+      </version>
+   </versions>
+   <langs>
+      <lang>Any</lang>
+   </langs>
+   <license><![CDATA[GPL v2+]]></license>
+   <tags>
+         <en>
+            <tag>Mail collector</tag>
+            <tag>Mailcollector</tag>
+            <tag>Mailgate</tag>
+         </en>
+   </tags>
+</root>
