@@ -40,8 +40,8 @@
    <license><![CDATA[GPL v2+]]></license>
    <tags>
          <en>
+            <tag>Mail</tag>
             <tag>Mail collector</tag>
-            <tag>Mailcollector</tag>
             <tag>Mailgate</tag>
          </en>
    </tags>
