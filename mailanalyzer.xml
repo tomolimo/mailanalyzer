@@ -3,6 +3,7 @@
    <name>Mail Analyzer</name>
    <key>mailanalyzer</key>
    <state>stable</state>
+    <logo>https://raw.githubusercontent.com/tomolimo/mailanalyzer/master/plugin.png</logo>
    <description>
       <short>
          <en><![CDATA[Mail Analyzer GLPI Plugin may be used to automatically combine CC mails into one Ticket]]></en>
