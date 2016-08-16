@@ -27,7 +27,7 @@ function plugin_version_mailanalyzer(){
    global $LANG;
 
    return array ('name'           => 'Mail Analyzer',
-                'version'        => '1.2.3',
+                'version'        => '1.2.4',
                 'author'         => 'Olivier Moron',
                 'homepage'       => '',
                 'minGlpiVersion' => '0.83.8');
@@ -35,8 +35,8 @@ function plugin_version_mailanalyzer(){
 
 // Optional : check prerequisites before install : may print errors or add to message after redirect
 function plugin_mailanalyzer_check_prerequisites(){
-   if (version_compare(GLPI_VERSION,'0.83.8','lt') || version_compare(GLPI_VERSION,'0.92','ge')) {
-      echo "This plugin requires GLPI >= 0.83.8 and < 0.92";
+   if (version_compare(GLPI_VERSION,'0.83.8','lt') ) {
+      echo "This plugin requires GLPI >= 0.83.8";
       return false;
    } else {
       return true;
