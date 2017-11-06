@@ -122,7 +122,7 @@ class PluginMailAnalyzer {
 	}
 
 	/**
-    *		Search for current email in order to get its msg num, that will be stored in $mailgate->mid.
+    *		Search for current email in order to get its msg num, that will be stored in $mailgate->{$mailgate->pluginmailanalyzer_mid_field}.
     *		The only way to find the right email in the current mailbox is to look for "message-id" property
     *
     * @param MailCollector $mailgate is a connected MailCollector
@@ -132,18 +132,19 @@ class PluginMailAnalyzer {
     */
 	static function getHeaderAndMsgNum($mailgate, $message_id){
 
-		for(; $mailgate->mid <= $mailgate->getTotalMails(); $mailgate->mid++){
-			$fetchheader = PluginMailAnalyzer::getAdditionnalHeaders($mailgate->marubox, $mailgate->mid) ;
-			if( array_key_exists( 'message-id', $fetchheader) && $fetchheader['message-id'] == $message_id )
-				return $fetchheader ; // message is found, then stop search, and $mailgate->mid is the msg num in the mailbox
+		for($locMsgNum = 1; $locMsgNum <= $mailgate->getTotalMails(); $locMsgNum++) {
+			$fetchheader = PluginMailAnalyzer::getAdditionnalHeaders($mailgate->marubox, $locMsgNum) ;
+			if( array_key_exists( 'message-id', $fetchheader) && $fetchheader['message-id'] == $message_id ) {
+            $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = imap_uid($mailgate->marubox, $locMsgNum);
+				return $fetchheader ; // message is found, then stop search, and $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is the msg uid in the mailbox
+         }
 		}
-		return array(); // returns an empty array if not found, in this case, $mailgate->mid == $mailgate->getTotalMails() + 1
+
+		return array(); // returns an empty array if not found, in this case, $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is not changed
 	}
 
 	/**
-    *		Search for current email in order to get its msg num, that will be stored in $mailgate->mid.
-    *		The only way to find the right email in the current mailbox is to look for "message-id" property
-    *
+    * Create default mailgate
     * @param int $mailgate_id is the id of the mail collector in GLPI DB
     * @return MailCollector
     *
@@ -152,7 +153,8 @@ class PluginMailAnalyzer {
 
 		$mailgate = new MailCollector() ;
 		$mailgate->getFromDB($mailgate_id) ;
-		$mailgate->mid = 1 ;
+      self::setUIDField($mailgate);
+		$mailgate->{$mailgate->pluginmailanalyzer_uid_field} = -1 ;
 		$mailgate->connect() ;
 
 		return $mailgate ;
@@ -287,6 +289,7 @@ class PluginMailAnalyzer {
 			if( array_key_exists('mailgate', $GLOBALS) ){
 				// mailgate has been open by web page call, then use it
 				$mailgate = $GLOBALS['mailgate'] ;
+            self::setUIDField($mailgate);
 			}
 			else{
 				// mailgate is not open. Called by cron
@@ -303,9 +306,9 @@ class PluginMailAnalyzer {
 				// must prevent ticket creation
 				$parm->input = array( ) ;
 
-				// as Ticket creation is canceled, then email is not deleted from mailbox
-				// then we need to set deletion flag to true to this the email from mailbox folder
-				$mailgate->deleteMails( $mailgate->mid ) ;
+				// as Ticket creation is cancelled, then email is not deleted from mailbox
+				// then we need to set deletion flag to true to this email from mailbox folder
+				$mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::ACCEPTED_FOLDER ) ;
 
 				// close mailgate only if localy open
 				if( !array_key_exists('mailgate', $GLOBALS) )
@@ -379,18 +382,18 @@ class PluginMailAnalyzer {
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
                   $parm->input = array() ; // empty array...
 
-                  // as Ticket creation is canceled, then email is not deleted from mailbox
-                  // then we need to set deletion flag to true to this the email from mailbox folder
-                  $mailgate->deleteMails( $mailgate->mid ) ;
+                  // as Ticket creation is cancelled, then email is not deleted from mailbox
+                  // then we need to set deletion flag to true to this email from mailbox folder
+                  $mailgate->deleteMails($mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::ACCEPTED_FOLDER) ; // OK folder
 
                   // close mailgate only if localy open
                   if( !array_key_exists('mailgate', $GLOBALS) )
-                     $mailgate->close_mailbox() ; // cloase session and delete emails marked for deletion during this session only!
+                     $mailgate->close_mailbox() ; // close session and delete emails marked for deletion during this session only!
 
                   return ;
                } else {
                   // ticket creation, but linked to the closed one...
-                  $parm->input['_link'] = array( 'link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['ticket_id'] ) ;
+                  $parm->input['_link'] = array('link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['ticket_id']) ;
                }
 				}
 			}
@@ -424,6 +427,7 @@ class PluginMailAnalyzer {
 			if( array_key_exists('mailgate', $GLOBALS) ){
 				// mailgate has been open by web page call, then use it
 				$mailgate = $GLOBALS['mailgate'] ;
+            self::setUIDField($mailgate);
 			}
 			else{
 				$mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']) ;
@@ -457,10 +461,21 @@ class PluginMailAnalyzer {
 
 			// close mailgate only if localy open
 			if( !array_key_exists('mailgate', $GLOBALS) )
-				$mailgate->close_mailbox() ; // will delete emails marked for deletion
+				$mailgate->close_mailbox() ;
 
 		}
 	}
 
+   static function setUIDField($mailgate) {
+      if (isset($mailgate->uid)) {
+         $mailgate->pluginmailanalyzer_uid_field = 'uid';
+      } else {
+         $mailgate->pluginmailanalyzer_uid_field = 'mid';
+      }
+      if (preg_match('@/pop(/|})@i', $mailgate->fields['host'])) {
+         $mailgate->fields['refused'] = '';
+         $mailgate->fields['accepted'] = '';
+      }
+   }
 }
 
