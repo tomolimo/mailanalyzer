@@ -308,7 +308,7 @@ class PluginMailAnalyzer {
 
 				// as Ticket creation is cancelled, then email is not deleted from mailbox
 				// then we need to set deletion flag to true to this email from mailbox folder
-				$mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::ACCEPTED_FOLDER ) ;
+				$mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::REFUSED_FOLDER ) ; // NOK Folder
 
 				// close mailgate only if localy open
 				if( !array_key_exists('mailgate', $GLOBALS) )
