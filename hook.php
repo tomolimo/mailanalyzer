@@ -11,6 +11,7 @@ if (!function_exists('arTableExists')) {
    }
 }
 
+
 if (!function_exists('arFieldExists')) {
    function arFieldExists($table, $field, $usecache = true) {
       global $DB;
@@ -22,7 +23,10 @@ if (!function_exists('arFieldExists')) {
    }
 }
 
-
+/**
+ * Summary of plugin_mailanalyzer_install
+ * @return boolean
+ */
 function plugin_mailanalyzer_install() {
 	global $DB ;
 
@@ -47,6 +51,10 @@ function plugin_mailanalyzer_install() {
 	return true;
 }
 
+/**
+ * Summary of plugin_mailanalyzer_uninstall
+ * @return boolean
+ */
 function plugin_mailanalyzer_uninstall() {
 	global $DB;
 	// nothing to uninstall
@@ -54,14 +62,6 @@ function plugin_mailanalyzer_uninstall() {
 
 	return true;
 }
-
-
-// function plugin_mailanalyzer_Update(){
-
-
-// 	return true;
-// }
-
 
 class PluginMailAnalyzer {
 
@@ -127,7 +127,7 @@ class PluginMailAnalyzer {
     *
     * @param MailCollector $mailgate is a connected MailCollector
     * @param string $message_id is the "Message-ID" property of the messasge: most of the time looks like: <080DF555E8A78147A053578EC592E8395F25E3@arexch34.ar.ray.group>
-    * @return array of strings: extended header properties, and property 'mid' will be the msg num found in mailbox
+    * @return array of strings: extended header properties, and property 'mid' will be the msg num (or msg uid) found in mailbox
     *
     */
 	static function getHeaderAndMsgNum($mailgate, $message_id){
@@ -135,8 +135,11 @@ class PluginMailAnalyzer {
 		for($locMsgNum = 1; $locMsgNum <= $mailgate->getTotalMails(); $locMsgNum++) {
 			$fetchheader = PluginMailAnalyzer::getAdditionnalHeaders($mailgate->marubox, $locMsgNum) ;
 			if( array_key_exists( 'message-id', $fetchheader) && $fetchheader['message-id'] == $message_id ) {
-            $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = imap_uid($mailgate->marubox, $locMsgNum);
-				return $fetchheader ; // message is found, then stop search, and $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is the msg uid in the mailbox
+            $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = $locMsgNum; // by default
+            if ($mailgate->pluginmailanalyzer_is_uid) {
+               $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = imap_uid($mailgate->marubox, $locMsgNum);
+            }
+				return $fetchheader ; // message is found, then stop search, and $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is the msg msgno/uid in the mailbox
          }
 		}
 
@@ -161,68 +164,25 @@ class PluginMailAnalyzer {
 	}
 
 
-   /**
-    * Retrieve a user from the database using its lastName + FirstName
-    *
-    * @param $name login of the user
-    *
-    * @return true if succeed else false
-    **/
-   function getFromDBbyName($name) {
-      global $DB;
-
-      $query = "SELECT *
-                FROM `".$this->getTable()."`
-                WHERE `name` = '$name'";
-
-      if ($result = $DB->query($query)) {
-         if ($DB->numrows($result) != 1) {
-            return false;
-         }
-         $this->fields = $DB->fetch_assoc($result);
-         if (is_array($this->fields) && count($this->fields)) {
-            return true;
-         }
-      }
-      return false;
-   }
-
-
-   /**
-    */
-
+	/**
+	 * Summary of plugin_pre_item_add_mailanalyzer_followup
+	 * @param mixed $parm
+	 */
 	public static function plugin_pre_item_add_mailanalyzer_followup($parm) {
 		global $DB ;
 
       if( array_key_exists('_head', $parm->input) ) {
-         // try to change requester
-         // search for ##From if it exists, then try to find real requester from DB
+         // change requester if needed
          $locUser = new User();
-
-         $ptnUserFullName = "/##From: ([_a-z0-9-\\\\' ]+), ([_.a-z0-9- ]+)/i";
-
-         $str = self::getTextFromHtml($parm->input['content']) ;
-
-         if( preg_match_all($ptnUserFullName, $str, $matches, PREG_PATTERN_ORDER) > 0 ){
-            // we found at least one ##From:
-            // then try to get its user id from DB
-            $query = "select glpi_users.* from glpi_users
-                    right outer join glpi_useremails on glpi_useremails.users_id = glpi_users.id
-                    where glpi_users.realname LIKE '".trim( $matches[1][0] )."'
-                          and glpi_users.firstname like '".trim( $matches[2][0] )."'
-                          and glpi_useremails.is_default = 1
-                          and glpi_users.is_active = 1
-                          and glpi_users.is_deleted = 0;" ;
-            $res = $DB->query($query) ;
-            if( $DB->numrows($res) == 1 ) { // we need to be sure there is only one user with same name and same firstname
-               $row = $DB->fetch_array($res);
-               if( $locUser->getFromDB( $row['id'] ) ) {
-                  // set users_id
-                  $parm->input['users_id'] = $locUser->getID() ;
-                  //$parm->input['_users_id_requester'] = $locUser->getID() ;
-               }
+         $str = self::getTextFromHtml($parm->input['content']);
+         $users_id = self::getUserOnBehalfOf($str);
+         if ($users_id!==false) {
+            if ($locUser->getFromDB($users_id)) {
+               // set users_id
+               $parm->input['users_id'] = $users_id;
             }
          }
+
       }
 	}
 
@@ -239,52 +199,80 @@ class PluginMailAnalyzer {
       return strip_tags( $ret );
    }
 
-	/**
+   /**
+    * Summary of getUserOnBehalfOf
+    * search for ##From if it exists, then try to find users_id from DB
+    * @param mixed $str
+    * @return mixed
     */
+   public static function getUserOnBehalfOf( $str ) {
+      global $DB;
 
+      // search for ##From if it exists, then try to find real requester from DB
+
+      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?\W*(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/im';
+
+      if (preg_match_all($ptnUserFullName, $str, $matches, PREG_SET_ORDER) > 0) {
+         // we found at least one ##From:
+         // then we try to get its user id from DB
+         // if an email has been found, then we try it
+         // else we try with name and firstname in this order
+         $matches = $matches[0];
+         if (isset($matches['email'])) {
+            $where = "glpi_useremails.email = '".$matches['email']."'";
+         } else {
+            $where = "glpi_users.realname = '".trim( $matches['last'] )."'
+                      AND glpi_users.firstname = '".trim( $matches['first'] )."'
+                      AND glpi_useremails.is_default = 1";
+         }
+         $query = "SELECT glpi_users.id FROM glpi_users
+                    RIGHT OUTER JOIN glpi_useremails ON glpi_useremails.users_id = glpi_users.id
+                    WHERE $where
+                          AND glpi_users.is_active = 1
+                          AND glpi_users.is_deleted = 0
+                    LIMIT 1;" ;
+         $res = $DB->query($query) ;
+         if ($res) {
+            $row = $DB->fetch_array($res);
+            return $row['id'];
+         }
+      }
+
+      return false;
+
+   }
+
+
+	/**
+	 * Summary of plugin_pre_item_add_mailanalyzer
+	 * @param mixed $parm
+	 * @return void
+	 */
 	public static function plugin_pre_item_add_mailanalyzer($parm) {
 		global $DB, $GLOBALS ;
 
 		if( array_key_exists('_head', $parm->input) ) {
 			// this ticket have been created via email receiver.
 
-			$references = array() ;
-
-         // try to change requester
+         // change requester if needed
          // search for ##From if it exists, then try to find real requester from DB
          $locUser = new User();
 
-         $ptnUserFullName = "/##From: ([_a-z0-9-\\\\' ]+), ([_.a-z0-9- ]+)/i";
-
-         $str = self::getTextFromHtml($parm->input['content']) ;
-
-         if( preg_match_all($ptnUserFullName, $str, $matches, PREG_PATTERN_ORDER) > 0 ){
-            // we found at least one ##From:
-            // then try to get its user id from DB
-            $query = "select glpi_users.* from glpi_users
-                    right outer join glpi_useremails on glpi_useremails.users_id = glpi_users.id
-                    where glpi_users.realname LIKE '".trim( $matches[1][0] )."'
-                          and glpi_users.firstname like '".trim( $matches[2][0] )."'
-                          and glpi_useremails.is_default = 1
-                          and glpi_users.is_active = 1
-                          and glpi_users.is_deleted = 0;" ;
-            //$query = "select glpi_users.* from glpi_users where realname LIKE '".$matches[1][0]."' and firstname like '".$matches[2][0]."' and is_active = 1 and is_deleted = 0;" ;
-            $res = $DB->query($query) ;
-            if( $DB->numrows($res) == 1 ) { // we need to be sure there is only one user with same name and same firstname
-               $row = $DB->fetch_array($res);
-               if( $locUser->getFromDB( $row['id'] ) ) {
-                  // set user_id and user_entity only if 'post-only' profile is found and unique
-                  $entity = Profile_User::getEntitiesForProfileByUser( $locUser->getID(), 1 ) ;
-                  if( count( $entity ) == 1 ) {
-                     $parm->input['users_id_recipient'] = $parm->input['_users_id_requester'] ;
-                     $parm->input['_users_id_requester'] = $locUser->getID() ;
-                     //$entity = array_keys( $entity ) ;
-                     $parm->input['entities_id'] = current( $entity ) ; //[0] ;
-                  }
+         $str = self::getTextFromHtml($parm->input['content']);
+         $users_id = self::getUserOnBehalfOf($str);
+         if ($users_id !== false) {
+            if( $locUser->getFromDB( $users_id ) ) {
+               // set user_id and user_entity only if 'post-only' profile is found and unique
+               $entity = Profile_User::getEntitiesForProfileByUser($users_id, 1 ); // 1 if the post-only or self-service profile
+               if( count( $entity ) == 1 ) {
+                  $parm->input['users_id_recipient'] = $parm->input['_users_id_requester'];
+                  $parm->input['_users_id_requester'] = $users_id;
+                  $parm->input['entities_id'] = current( $entity );
                }
             }
          }
-         //            print_r($matches);
+
+         $references = array() ;
 
 			if( array_key_exists('mailgate', $GLOBALS) ){
 				// mailgate has been open by web page call, then use it
@@ -317,7 +305,6 @@ class PluginMailAnalyzer {
 				return ;
 			}
 
-
 			// try to get Thread-Index from email header
 			$fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']) ;
 
@@ -327,13 +314,6 @@ class PluginMailAnalyzer {
 				// explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
 				$references[] = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
 			}
-
-         // 			$thread_topic="";
-         // 			if( array_key_exists( 'thread-topic', $fetchheader) ){
-         // 				// initial topic
-         // 				$thread_topic = imap_utf8($fetchheader['thread-topic']) ;
-         // 			}
-
 
 			// this ticket has been created via an email receiver.
 			// we have to check if references can be found in DB.
@@ -412,7 +392,10 @@ class PluginMailAnalyzer {
 
 	}
 
-
+	/**
+	 * Summary of plugin_item_add_mailanalyzer
+	 * @param mixed $parm
+	 */
 	public static function plugin_item_add_mailanalyzer($parm) {
 		global $DB ;
 
@@ -466,11 +449,17 @@ class PluginMailAnalyzer {
 		}
 	}
 
+   /**
+    * Summary of setUIDField
+    * @param mixed $mailgate
+    */
    static function setUIDField($mailgate) {
       if (isset($mailgate->uid)) {
          $mailgate->pluginmailanalyzer_uid_field = 'uid';
+         $mailgate->pluginmailanalyzer_is_uid = true;
       } else {
          $mailgate->pluginmailanalyzer_uid_field = 'mid';
+         $mailgate->pluginmailanalyzer_is_uid = false;
       }
       if (preg_match('@/pop(/|})@i', $mailgate->fields['host'])) {
          $mailgate->fields['refused'] = '';

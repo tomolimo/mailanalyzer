@@ -27,7 +27,7 @@ function plugin_version_mailanalyzer(){
    global $LANG;
 
    return array ('name'           => 'Mail Analyzer',
-                'version'        => '1.3.4',
+                'version'        => '1.3.5',
                 'author'         => 'Olivier Moron',
                 'homepage'       => '',
                 'minGlpiVersion' => '9.1');
