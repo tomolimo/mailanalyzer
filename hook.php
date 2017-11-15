@@ -134,7 +134,7 @@ class PluginMailAnalyzer {
 
 		for($locMsgNum = 1; $locMsgNum <= $mailgate->getTotalMails(); $locMsgNum++) {
 			$fetchheader = PluginMailAnalyzer::getAdditionnalHeaders($mailgate->marubox, $locMsgNum) ;
-			if( array_key_exists( 'message-id', $fetchheader) && $fetchheader['message-id'] == $message_id ) {
+			if (isset($fetchheader['message-id']) && $fetchheader['message-id'] == $message_id) {
             $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = $locMsgNum; // by default
             if ($mailgate->pluginmailanalyzer_is_uid) {
                $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = imap_uid($mailgate->marubox, $locMsgNum);
@@ -171,7 +171,7 @@ class PluginMailAnalyzer {
 	public static function plugin_pre_item_add_mailanalyzer_followup($parm) {
 		global $DB ;
 
-      if( array_key_exists('_head', $parm->input) ) {
+      if (isset($parm->input['_head']) && !isset($parm->input['from_plugin_pre_item_add_mailanalyzer'])) {
          // change requester if needed
          $locUser = new User();
          $str = self::getTextFromHtml($parm->input['content']);
@@ -182,7 +182,6 @@ class PluginMailAnalyzer {
                $parm->input['users_id'] = $users_id;
             }
          }
-
       }
 	}
 
@@ -210,7 +209,7 @@ class PluginMailAnalyzer {
 
       // search for ##From if it exists, then try to find real requester from DB
 
-      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?\W*(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/im';
+      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/im';
 
       if (preg_match_all($ptnUserFullName, $str, $matches, PREG_SET_ORDER) > 0) {
          // we found at least one ##From:
@@ -251,7 +250,7 @@ class PluginMailAnalyzer {
 	public static function plugin_pre_item_add_mailanalyzer($parm) {
 		global $DB, $GLOBALS ;
 
-		if( array_key_exists('_head', $parm->input) ) {
+		if (isset($parm->input['_head'])) {
 			// this ticket have been created via email receiver.
 
          // change requester if needed
@@ -273,16 +272,16 @@ class PluginMailAnalyzer {
          }
 
          $references = array() ;
-
-			if( array_key_exists('mailgate', $GLOBALS) ){
+         $local_mailgate = false;
+			if (isset($GLOBALS['mailgate'])) {
 				// mailgate has been open by web page call, then use it
 				$mailgate = $GLOBALS['mailgate'] ;
             self::setUIDField($mailgate);
-			}
-			else{
+			} else {
 				// mailgate is not open. Called by cron
 				// then locally create a mailgate
 				$mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']) ;
+            $local_mailgate = true;
 			}
 
 			// we must check if this email has not been received yet!
@@ -299,8 +298,9 @@ class PluginMailAnalyzer {
 				$mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::REFUSED_FOLDER ) ; // NOK Folder
 
 				// close mailgate only if localy open
-				if( !array_key_exists('mailgate', $GLOBALS) )
+				if ($local_mailgate) {
 					$mailgate->close_mailbox() ; // close session and delete emails marked for deletion during this session only!
+            }
 
 				return ;
 			}
@@ -309,7 +309,7 @@ class PluginMailAnalyzer {
 			$fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']) ;
 
 			// search for 'Thread-Index'
-			if( array_key_exists( 'thread-index', $fetchheader) ){
+			if (isset($fetchheader['thread-index'])) {
 				// exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
 				// explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
 				$references[] = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
@@ -317,7 +317,7 @@ class PluginMailAnalyzer {
 
 			// this ticket has been created via an email receiver.
 			// we have to check if references can be found in DB.
-			if( array_key_exists('references', $parm->input['_head']) ) {
+			if (isset($parm->input['_head']['references'])) {
 				// we may have a forwarded email that looks like reply-to
             if(preg_match_all('/<.*?>/', $parm->input['_head']['references'], $matches)){
                $references = array_merge($references,  $matches[0]) ;
@@ -353,7 +353,11 @@ class PluginMailAnalyzer {
                   unset( $input['entities_id'] ) ;
                   unset( $input['_ruleid'] ) ;
 
+                  // to prevent a new analyze in self::plugin_pre_item_add_mailanalyzer_followup
+                  $input['from_plugin_pre_item_add_mailanalyzer'] = 1;
+
                   $ticketfollowup->add($input) ;
+
 
                   // add message id to DB in case of another email will use it
                   $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['tickets_id'].");";
@@ -367,8 +371,9 @@ class PluginMailAnalyzer {
                   $mailgate->deleteMails($mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::ACCEPTED_FOLDER) ; // OK folder
 
                   // close mailgate only if localy open
-                  if( !array_key_exists('mailgate', $GLOBALS) )
+                  if ($local_mailgate) {
                      $mailgate->close_mailbox() ; // close session and delete emails marked for deletion during this session only!
+                  }
 
                   return ;
                } else {
@@ -399,28 +404,28 @@ class PluginMailAnalyzer {
 	public static function plugin_item_add_mailanalyzer($parm) {
 		global $DB ;
 
-		if( array_key_exists('_head', $parm->input) ) {
+		if (isset($parm->input['_head'])) {
 			// this ticket have been created via email receiver.
 			// update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
 
 			$query = " (message_id = '". $parm->input['_head']['message_id']."')" ;
 
 			$fetchheader = array() ;
-
-			if( array_key_exists('mailgate', $GLOBALS) ){
+         $local_mailgate = false;
+			if (isset($GLOBALS['mailgate'])) {
 				// mailgate has been open by web page call, then use it
 				$mailgate = $GLOBALS['mailgate'] ;
             self::setUIDField($mailgate);
-			}
-			else{
+			} else {
 				$mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']) ;
+            $local_mailgate = true;
 			}
 
 			// try to get Thread-Index from email header
 			$fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']) ;
 
 			// search for 'Thread-Index: '
-			if( array_key_exists( 'thread-index', $fetchheader) ){
+			if (isset($fetchheader['thread-index'])) {
 				// exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
 				// explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
 				$thread_index = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
@@ -428,7 +433,7 @@ class PluginMailAnalyzer {
 			}
 
 			// search for references
-			if( array_key_exists('references', $parm->input['_head']) ) {
+			if (isset($parm->input['_head']['references'])) {
 				// we may have a forwarded email that looks like reply-to
             $references = array();
             if(preg_match_all('/<.*?>/', $parm->input['_head']['references'], $matches)){
@@ -443,8 +448,9 @@ class PluginMailAnalyzer {
 			$DB->query($query) ;
 
 			// close mailgate only if localy open
-			if( !array_key_exists('mailgate', $GLOBALS) )
+			if ($local_mailgate) {
 				$mailgate->close_mailbox() ;
+         }
 
 		}
 	}
@@ -454,6 +460,7 @@ class PluginMailAnalyzer {
     * @param mixed $mailgate
     */
    static function setUIDField($mailgate) {
+
       if (isset($mailgate->uid)) {
          $mailgate->pluginmailanalyzer_uid_field = 'uid';
          $mailgate->pluginmailanalyzer_is_uid = true;
@@ -461,6 +468,8 @@ class PluginMailAnalyzer {
          $mailgate->pluginmailanalyzer_uid_field = 'mid';
          $mailgate->pluginmailanalyzer_is_uid = false;
       }
+
+      // clear refused and accepted fields if mailbox is accessed via pop
       if (preg_match('@/pop(/|})@i', $mailgate->fields['host'])) {
          $mailgate->fields['refused'] = '';
          $mailgate->fields['accepted'] = '';
