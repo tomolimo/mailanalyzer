@@ -193,17 +193,11 @@ class PluginMailAnalyzer {
     * @return string bare text
     */
    public static function getTextFromHtml( $str ) {
-      global $CFG_GLPI;
-      $ret = $str;
-      if ($CFG_GLPI["use_rich_text"]) {
-         $locTicket = New Ticket;
-         $ret = $locTicket->setSimpleTextContent($str);
-      }
-
-      //$ret = Toolbox::unclean_html_cross_side_scripting_deep($str);
-      //$ret = preg_replace(['@<\s*br\s*/*>@i', '@</*\s*(div|p)\s*>@i'] , "\n", $ret);
-      //$ret = strip_tags($ret);
-      //$ret = html_entity_decode(html_entity_decode($ret, ENT_QUOTES));
+      $ret = Toolbox::unclean_html_cross_side_scripting_deep($str);
+      $ret = preg_replace("/<(p|br|div)( [^>]*)?".">/i", "\n", $ret);
+      $ret = preg_replace("/(&nbsp;| |\xC2\xA0)+/", " ", $ret);
+      $ret = strip_tags($ret);
+      $ret = html_entity_decode(html_entity_decode($ret, ENT_QUOTES));
       return $ret;
    }
 
