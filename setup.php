@@ -27,7 +27,7 @@ function plugin_version_mailanalyzer(){
    global $LANG;
 
    return array ('name'           => 'Mail Analyzer',
-                 'version'        => '1.3.5',
+                 'version'        => '1.3.6',
                  'author'         => 'Olivier Moron',
                  'license'        => 'GPLv2+',
                  'homepage'       => 'https://github.com/tomolimo/mailanalyzer',

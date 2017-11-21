@@ -287,6 +287,9 @@ class PluginMailAnalyzer {
             $local_mailgate = true;
 			}
 
+			// try to get Thread-Index from email header
+			$fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']) ;
+
 			// we must check if this email has not been received yet!
 			// test if 'message-id' is in the DB
 			$query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( message_id = '".$parm->input['_head']['message_id']."' );" ;
@@ -307,9 +310,6 @@ class PluginMailAnalyzer {
 
 				return ;
 			}
-
-			// try to get Thread-Index from email header
-			$fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']) ;
 
 			// search for 'Thread-Index'
 			if (isset($fetchheader['thread-index'])) {
