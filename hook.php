@@ -313,11 +313,12 @@ class PluginMailAnalyzer {
 			}
 
 			// search for 'Thread-Index'
-			if (isset($fetchheader['thread-index'])) {
-				// exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
-				// explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
-				$references[] = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
-			}
+         $references = [];
+         //if (isset($fetchheader['thread-index'])) {
+         //   // exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
+         //   // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
+         //   $references[] = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
+         //}
 
 			// this ticket has been created via an email receiver.
 			// we have to check if references can be found in DB.
@@ -429,12 +430,12 @@ class PluginMailAnalyzer {
 			$fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']) ;
 
 			// search for 'Thread-Index: '
-			if (isset($fetchheader['thread-index'])) {
-				// exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
-				// explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
-				$thread_index = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
-				$query .= " OR (message_id = '".$thread_index."')" ;
-			}
+         //if (isset($fetchheader['thread-index'])) {
+         //   // exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
+         //   // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
+         //   $thread_index = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 )) ;
+         //   $query .= " OR (message_id = '".$thread_index."')" ;
+         //}
 
 			// search for references
 			if (isset($parm->input['_head']['references'])) {
