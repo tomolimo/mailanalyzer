@@ -349,12 +349,12 @@ class PluginMailAnalyzer {
                if( $locTicket->fields['status'] !=  CommonITILObject::SOLVED && $locTicket->fields['status'] != CommonITILObject::CLOSED) {
                   $ticketfollowup = new TicketFollowup() ;
                   $input = $parm->input ;
-                  $input['tickets_id'] = $row['ticket_id'] ;
+                  $input['items_id'] = $row['ticket_id'] ;
                   $input['users_id'] = $parm->input['_users_id_requester'] ;
                   $input['add_reopen'] = 1 ;
+                  $input['itemtype'] = 'Ticket' ;
 
                   unset( $input['urgency'] ) ;
-                  unset( $input['itemtype'] ) ;
                   unset( $input['entities_id'] ) ;
                   unset( $input['_ruleid'] ) ;
 
