@@ -347,7 +347,7 @@ class PluginMailAnalyzer {
                $locTicket = new Ticket() ;
                $locTicket->getFromDB( $row['ticket_id'] ) ;
                if( $locTicket->fields['status'] !=  CommonITILObject::SOLVED && $locTicket->fields['status'] != CommonITILObject::CLOSED) {
-                  $ticketfollowup = new TicketFollowup() ;
+                  $ticketfollowup = new ITILFollowup() ;
                   $input = $parm->input ;
                   $input['items_id'] = $row['ticket_id'] ;
                   $input['users_id'] = $parm->input['_users_id_requester'] ;
