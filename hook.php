@@ -365,7 +365,7 @@ class PluginMailAnalyzer {
 
 
                   // add message id to DB in case of another email will use it
-                  $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['tickets_id'].");";
+                  $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['items_id'].");";
                   $DB->query($query) ;
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
