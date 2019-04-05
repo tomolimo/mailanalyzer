@@ -341,19 +341,19 @@ class PluginMailAnalyzer {
              $res = $DB->query($query);
             if ($DB->numrows($res) > 0) {
                $row = $DB->fetch_array($res);
-                // TicketFollowup creation only if ticket status is not solved or closed
+                    // TicketFollowup creation only if ticket status is not solved or closed
                //                    echo $row['ticket_id'] ;
                $locTicket = new Ticket();
                $locTicket->getFromDB( $row['ticket_id'] );
                if ($locTicket->fields['status'] !=  CommonITILObject::SOLVED && $locTicket->fields['status'] != CommonITILObject::CLOSED) {
-                  $ticketfollowup = new TicketFollowup();
+                  $ticketfollowup = new ITILFollowup();
                   $input = $parm->input;
-                  $input['tickets_id'] = $row['ticket_id'];
+                  $input['items_id'] = $row['ticket_id'];
                   $input['users_id'] = $parm->input['_users_id_requester'];
                   $input['add_reopen'] = 1;
+                  $input['itemtype'] = 'Ticket';
 
                   unset( $input['urgency'] );
-                  unset( $input['itemtype'] );
                   unset( $input['entities_id'] );
                   unset( $input['_ruleid'] );
 
@@ -363,7 +363,7 @@ class PluginMailAnalyzer {
                   $ticketfollowup->add($input);
 
                   // add message id to DB in case of another email will use it
-                  $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['tickets_id'].");";
+                  $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['items_id'].");";
                   $DB->query($query);
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
