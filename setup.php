@@ -30,13 +30,13 @@ function plugin_version_mailanalyzer() {
                   'author'         => 'Olivier Moron',
                   'license'        => 'GPLv2+',
                   'homepage'       => 'https://github.com/tomolimo/mailanalyzer',
-                  'minGlpiVersion' => '9.1'];
+                  'minGlpiVersion' => '9.3'];
 }
 
 // Optional : check prerequisites before install : may print errors or add to message after redirect
 function plugin_mailanalyzer_check_prerequisites() {
-    if (version_compare(GLPI_VERSION, '9.1', 'lt')) {
-        echo "This plugin requires GLPI >= 9.1";
+    if (version_compare(GLPI_VERSION, '9.3', 'lt')) {
+        echo "This plugin requires GLPI >= 9.3";
         return false;
     } else {
         return true;
