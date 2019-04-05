@@ -1,7 +1,7 @@
 # mailanalyzer
 Mail Analyzer GLPI Plugin may be used to combine CC mails into one Ticket
 
-It is currently tested with GLPI 0.83.8, 0.85.5, 0.90, 9.1 and 9.2
+It is currently tested with GLPI 0.83.8, 0.85.5, 0.90, 9.1, 9.2 and 9.3
 
 Must be copied into *glpifolder*/plugins/mailanalyzer
 
