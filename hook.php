@@ -188,7 +188,7 @@ class PluginMailAnalyzer {
       // search for ##From if it exists, then try to find real requester from DB
       $str = str_replace(['\n', '\r\n'], "\n", $str); // to be sure that \n (end of line) will not be confused with a \ in firstname
 
-      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/im';
+      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/imu';
 
       if (preg_match_all($ptnUserFullName, $str, $matches, PREG_SET_ORDER) > 0) {
          // we found at least one ##From:
@@ -199,8 +199,8 @@ class PluginMailAnalyzer {
          if (isset($matches['email'])) {
             $where = "glpi_useremails.email = '".$matches['email']."'";
          } else {
-            $where = "glpi_users.realname = '".trim( $matches['last'] )."'
-                      AND glpi_users.firstname = '".trim( $matches['first'] )."'
+            $where = "glpi_users.realname = '".$DB->escape(trim( $matches['last'] ))."'
+                      AND glpi_users.firstname = '".$DB->escape(trim( $matches['first'] ))."'
                       AND glpi_useremails.is_default = 1";
          }
          $query = "SELECT glpi_users.id FROM glpi_users
