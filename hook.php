@@ -211,7 +211,7 @@ class PluginMailAnalyzer {
       // search for ##From if it exists, then try to find real requester from DB
       $str = str_replace(['\n', '\r\n'], "\n", $str); // to be sure that \n (end of line) will not be confused with a \ in firstname
 
-      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/im';
+      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/imu';
 
       if (preg_match_all($ptnUserFullName, $str, $matches, PREG_SET_ORDER) > 0) {
          // we found at least one ##From:
@@ -220,21 +220,24 @@ class PluginMailAnalyzer {
          // else we try with name and firstname in this order
          $matches = $matches[0];
          if (isset($matches['email'])) {
-            $where = "glpi_useremails.email = '".$matches['email']."'";
+            $where2 = ['glpi_useremails.email' => $matches['email']];
          } else {
-            $where = "glpi_users.realname = '".trim( $matches['last'] )."'
-                      AND glpi_users.firstname = '".trim( $matches['first'] )."'
-                      AND glpi_useremails.is_default = 1";
+            $where2 = ['AND' => ['glpi_users.realname'         => $DB->escape(trim( $matches['last'] )),
+                                 'glpi_users.firstname'        => $DB->escape(trim( $matches['first'] )),
+                                 'glpi_useremails.is_default'  => 1
+                                 ]];
          }
-         $query = "SELECT glpi_users.id FROM glpi_users
-                    RIGHT OUTER JOIN glpi_useremails ON glpi_useremails.users_id = glpi_users.id
-                    WHERE $where
-                          AND glpi_users.is_active = 1
-                          AND glpi_users.is_deleted = 0
-                    LIMIT 1;";
-         $res = $DB->query($query);
-         if ($res) {
-            $row = $DB->fetch_array($res);
+         $where2['AND']['glpi_users.is_active'] = 1;
+         $where2['AND']['glpi_users.is_deleted'] = 0;
+         $res = $DB->request([
+            'SELECT'    => 'glpi_users.id',
+            'FROM'      => 'glpi_users',
+            'RIGHT JOIN'=> ['glpi_useremails' => ['FKEY' => ['glpi_useremails' => 'users_id', 'glpi_users' => 'id']]],
+            'WHERE'     => $where2,
+            'LIMIT'     => 1
+            ]);
+
+         if ($row = $res->next()) {
             return $row['id'];
          }
       }
@@ -291,23 +294,29 @@ class PluginMailAnalyzer {
 
             // we must check if this email has not been received yet!
             // test if 'message-id' is in the DB
-            $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( message_id = '".$parm->input['_head']['message_id']."' );";
-            $res = $DB->query($query);
-         if ($DB->numrows($res) > 0) {
-             // email already received
-             // must prevent ticket creation
-             $parm->input = [ ];
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id',
+               [
+               'AND' =>
+                  [
+                  'ticket_id' => ['!=', 0],
+                  'message_id' => $parm->input['_head']['message_id']
+                  ]
+               ]);
+         if ($row = $res->next()) {
+            // email already received
+            // must prevent ticket creation
+            $parm->input = [ ];
 
-             // as Ticket creation is cancelled, then email is not deleted from mailbox
-             // then we need to set deletion flag to true to this email from mailbox folder
-             $mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::REFUSED_FOLDER ); // NOK Folder
+            // as Ticket creation is cancelled, then email is not deleted from mailbox
+            // then we need to set deletion flag to true to this email from mailbox folder
+            $mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::REFUSED_FOLDER ); // NOK Folder
 
-             // close mailgate only if localy open
+            // close mailgate only if localy open
             if ($local_mailgate) {
-                $mailgate->close_mailbox(); // close session and delete emails marked for deletion during this session only!
+               $mailgate->close_mailbox(); // close session and delete emails marked for deletion during this session only!
             }
 
-             return;
+            return;
          }
 
             // search for 'Thread-Index'
@@ -328,20 +337,21 @@ class PluginMailAnalyzer {
          }
 
          if (count( $references ) > 0) {
-
-             $query = "";
             foreach ($references as $ref) {
-               if ($query <> "") {
-                   $query .= " OR";
-               }
-                  $query .= " (message_id = '".$ref."')";
+               $messages_id[] = $ref;
             }
 
-             $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( ".$query." ) ORDER BY ticket_id DESC;";
-             $res = $DB->query($query);
-            if ($DB->numrows($res) > 0) {
-               $row = $DB->fetch_array($res);
-                // TicketFollowup creation only if ticket status is not solved or closed
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id',
+               [
+               'AND' =>
+                  [
+                  'ticket_id' => ['!=',0],
+                  'message_id' => $messages_id
+                  ],
+                  'ORDER' => 'ticket_id DESC'
+               ]);
+            if ($row = $res->next()) {
+               // TicketFollowup creation only if ticket status is not solved or closed
                //                    echo $row['ticket_id'] ;
                $locTicket = new Ticket();
                $locTicket->getFromDB( $row['ticket_id'] );
@@ -363,8 +373,12 @@ class PluginMailAnalyzer {
                   $ticketfollowup->add($input);
 
                   // add message id to DB in case of another email will use it
-                  $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['tickets_id'].");";
-                  $DB->query($query);
+                  $DB->insert(
+                     'glpi_plugin_mailanalyzer_message_id',
+                     [
+                        'message_id' => $input['_head']['message_id'],
+                        'ticket_id' => $input['tickets_id']
+                     ]);
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
                   $parm->input = []; // empty array...
@@ -392,8 +406,12 @@ class PluginMailAnalyzer {
             // this is a new ticket
             // then add references and message_id to DB
          foreach ($references as $ref) {
-             $query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
-             $DB->query($query);
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+            if (count($res) <= 0) {
+               $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+            }
+            //$query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
+             //$DB->query($query);
          }
 
       }
@@ -406,13 +424,12 @@ class PluginMailAnalyzer {
      */
    public static function plugin_item_add_mailanalyzer($parm) {
        global $DB;
-
+       $messages_id = [];
       if (isset($parm->input['_head'])) {
           // this ticket have been created via email receiver.
           // update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
 
-          $query = " (message_id = '". $parm->input['_head']['message_id']."')";
-
+         $messages_id[] = $parm->input['_head']['message_id'];
           $fetchheader = [];
          $local_mailgate = false;
          if (isset($GLOBALS['mailgate'])) {
@@ -432,7 +449,7 @@ class PluginMailAnalyzer {
             // exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
             // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
             $thread_index = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 ));
-            $query .= " OR (message_id = '".$thread_index."')";
+            $messages_id[] = $thread_index;
          }
 
             // search for references
@@ -443,12 +460,23 @@ class PluginMailAnalyzer {
                $references =  $matches[0];
             }
             foreach ($references as $ref) {
-                $query .= " OR (message_id = '".$ref."')";
+               $messages_id[] = $ref;
             }
          }
-
-            $query = "UPDATE glpi_plugin_mailanalyzer_message_id SET ticket_id = ". $parm->fields['id']." WHERE ticket_id = 0 AND ( ".$query.") ;";
-            $DB->query($query);
+         $DB->update(
+            'glpi_plugin_mailanalyzer_message_id',
+            [
+            'ticket_id' => $parm->fields['id']
+            ],
+            [
+            'WHERE' =>
+               ['AND' =>
+                  [
+                  'ticket_id' => 0,
+                  'message_id' => $messages_id
+                  ]
+               ]
+            ]);
 
             // close mailgate only if localy open
          if ($local_mailgate) {

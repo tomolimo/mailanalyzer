@@ -1,6 +1,6 @@
 <?php
 
-define ("PLUGIN_MAILANALYSER_VERSION", "1.5.0");
+define ("PLUGIN_MAILANALYSER_VERSION", "1.5.1");
 // Init the hooks of the plugins -Needed
 function plugin_init_mailanalyzer() {
 
