@@ -17,7 +17,7 @@ function plugin_mailanalyzer_install() {
 				INDEX `ticket_id` (`ticket_id`)
 			)
 			COLLATE='utf8_general_ci'
-			ENGINE=MyISAM;
+			ENGINE=innoDB;
 			";
 
        $DB->query($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
