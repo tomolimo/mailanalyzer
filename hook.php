@@ -1,28 +1,5 @@
 <?php
 
-if (!function_exists('arTableExists')) {
-   function arTableExists($table) {
-      global $DB;
-      if (method_exists( $DB, 'tableExists')) {
-         return $DB->tableExists($table);
-      } else {
-         return TableExists($table);
-      }
-   }
-}
-
-
-if (!function_exists('arFieldExists')) {
-   function arFieldExists($table, $field, $usecache = true) {
-      global $DB;
-      if (method_exists( $DB, 'fieldExists')) {
-         return $DB->fieldExists($table, $field, $usecache);
-      } else {
-         return FieldExists($table, $field, $usecache);
-      }
-   }
-}
-
 /**
  * Summary of plugin_mailanalyzer_install
  * @return boolean
@@ -30,7 +7,7 @@ if (!function_exists('arFieldExists')) {
 function plugin_mailanalyzer_install() {
     global $DB;
 
-   if (!arTableExists("glpi_plugin_mailanalyzer_message_id")) {
+   if (!$DB->tableExists("glpi_plugin_mailanalyzer_message_id")) {
        $query = "CREATE TABLE `glpi_plugin_mailanalyzer_message_id` (
 				`id` INT(10) NOT NULL AUTO_INCREMENT,
 				`message_id` VARCHAR(255) NOT NULL DEFAULT '0',
@@ -44,6 +21,24 @@ function plugin_mailanalyzer_install() {
 			";
 
        $DB->query($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
+   }else {
+      $res = $DB->request([
+                     'SELECT' => 'ENGINE',
+                     'FROM'   => 'information_schema.TABLES',
+                     'WHERE'  => [
+                        'AND' => [
+                           'TABLE_SCHEMA' => $DB->dbdefault,
+                           'TABLE_NAME' => 'glpi_plugin_mailanalyzer_message_id'
+                        ]
+                     ]
+         ]);
+      if ($res->numrows() == 1) {
+         $row = $res->next();
+         if ($row['ENGINE'] == 'MyISAM') {
+            $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ENGINE = InnoDB";
+            $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         }
+      }
    }
 
     return true;
