@@ -256,7 +256,13 @@ class PluginMailAnalyzer {
          // change requester if needed
          // search for ##From if it exists, then try to find real requester from DB
          $locUser = new User();
-
+         if(isset($parm->input['itemtype']) && $parm->input['itemtype'] == 'Ticket') {
+            $ticketId = (isset($parm->input['items_id']) ? $parm->input['items_id'] : $parm->fields['items_id'] );
+            $locTicket = new Ticket;
+            if ($locTicket->getFromDB( $ticketId ) && isset( $parm->input['content'] )) {
+               self::addWatchers( $locTicket, $parm->input['content'] );
+            }
+         }
          $str = self::getTextFromHtml($parm->input['content']);
          $users_id = self::getUserOnBehalfOf($str);
          if ($users_id !== false) {
@@ -410,7 +416,6 @@ class PluginMailAnalyzer {
          }
 
       }
-
    }
 
     /**
@@ -423,6 +428,7 @@ class PluginMailAnalyzer {
       if (isset($parm->input['_head'])) {
           // this ticket have been created via email receiver.
           // update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
+         self::addWatchers( $parm, $parm->fields['content'] );
 
          $messages_id[] = $parm->input['_head']['message_id'];
           $fetchheader = [];
@@ -500,6 +506,89 @@ class PluginMailAnalyzer {
          $mailgate->fields['refused'] = '';
          $mailgate->fields['accepted'] = '';
       }
+   }
+
+   /**
+    * Summary of addWatchers
+    * @param mixed $parm    a Ticket
+    * @param mixed $content content that will be analyzed
+    * @return void
+    */
+   public static function addWatchers($parm, $content) {
+      // to be sure
+      if ($parm->getType() == 'Ticket') {
+         $content = str_replace(['\n', '\r\n'], "\n", $content);
+         $content = self::getTextFromHtml($content);
+         $ptnUserFullName = '/##CC\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/imu';
+         if (preg_match_all($ptnUserFullName, $content, $matches, PREG_PATTERN_ORDER) > 0) {
+            // we found at least one ##CC matching user name convention: "Name, Firstname"
+            for ($i=0; $i<count($matches[1]); $i++) {
+               // then try to get its user id from DB
+               //$locUser = self::getFromDBbyCompleteName( trim($matches[1][$i]).' '.trim($matches[2][$i]));
+               $locUser = self::getFromDBbyCompleteName( trim($matches['last'][$i]).' '.trim($matches['first'][$i]));
+               if ($locUser) {
+                  // add user in watcher list
+                  if (!$parm->isUser( CommonITILActor::OBSERVER, $locUser->getID())) {
+                     // then we need to add this user as it is not yet in the observer list
+                     $locTicketUser = new Ticket_User;
+                     $locTicketUser->add( [ 'tickets_id' => $parm->getId(), 'users_id' => $locUser->getID(), 'type' => CommonITILActor::OBSERVER, 'use_notification' => 1] );
+                     $parm->getFromDB($parm->getId());
+                  }
+               }
+            }
+         }
+
+         $locGroup = new ARBehavioursGroups;
+         $ptnGroupName = "/##CC: *([_a-z0-9-\\\\* ]+)/i";
+         if (preg_match_all($ptnGroupName, $content, $matches, PREG_PATTERN_ORDER) > 0) {
+            // we found at least one ##CC matching group name convention:
+            for ($i=0; $i<count($matches[1]); $i++) {
+               // then try to get its group id from DB
+               if ($locGroup->getFromDBWithName( trim($matches[1][$i]))) {
+                  // add group in watcher list
+                  if (!$parm->isGroup( CommonITILActor::OBSERVER, $locGroup->getID())) {
+                     // then we need to add this group as it is not yet in the observer list
+                     $locGroup_Ticket = new Group_Ticket;
+                     $locGroup_Ticket->add( [ 'tickets_id' => $parm->getId(), 'groups_id' => $locGroup->getID(), 'type' => CommonITILActor::OBSERVER] );
+                     $parm->getFromDB($parm->getId());
+                  }
+               }
+            }
+         }
+
+      }
+   }
+
+   /**
+    * Summary of getFromDBbyCompleteName
+    * Retrieve an item from the database using its Lastname Firstname
+    * @param string $completename : family name + first name of the user ('lastname firstname')
+    * @return boolean a user if succeed else false
+    **/
+   public static function getFromDBbyCompleteName($completename) {
+      global $DB;
+      $user = new User();
+      $res = $DB->request(
+                     $user->getTable(),
+                     [
+                     'AND' => [
+                        'is_active' => 1,
+                        'is_deleted' => 0,
+                        'RAW' => [
+                           "CONCAT(realname, ' ', firstname)" => ['LIKE', addslashes($completename)]
+                        ]
+                     ]
+                     ]);
+      if ($res) {
+         if ($res->numrows() != 1) {
+            return false;
+         }
+         $user->fields = $res->next();
+         if (is_array($user->fields) && count($user->fields)) {
+            return $user;
+         }
+      }
+      return false;
    }
 }
 
