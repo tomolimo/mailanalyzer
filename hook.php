@@ -538,13 +538,15 @@ class PluginMailAnalyzer {
             }
          }
 
-         $locGroup = new ARBehavioursGroups;
-         $ptnGroupName = "/##CC: *([_a-z0-9-\\\\* ]+)/i";
+         //$locGroup = new ARBehavioursGroups;
+         $locGroup = new Group;
+         $ptnGroupName = "/##CC\s*:\s* *([_a-z0-9-\\\\* ]+)/i";
          if (preg_match_all($ptnGroupName, $content, $matches, PREG_PATTERN_ORDER) > 0) {
             // we found at least one ##CC matching group name convention:
             for ($i=0; $i<count($matches[1]); $i++) {
                // then try to get its group id from DB
-               if ($locGroup->getFromDBWithName( trim($matches[1][$i]))) {
+               //if ($locGroup->getFromDBWithName( trim($matches[1][$i]))) {
+               if ($locGroup->getFromDBByCrit( ['name' => trim($matches[1][$i])])) {
                   // add group in watcher list
                   if (!$parm->isGroup( CommonITILActor::OBSERVER, $locGroup->getID())) {
                      // then we need to add this group as it is not yet in the observer list
