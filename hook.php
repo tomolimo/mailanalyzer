@@ -540,7 +540,7 @@ class PluginMailAnalyzer {
 
          //$locGroup = new ARBehavioursGroups;
          $locGroup = new Group;
-         $ptnGroupName = "/##CC\s*:\s* *([_a-z0-9-\\\\* ]+)/i";
+         $ptnGroupName = "/##CC\s*:\s* ([_a-z0-9-\\\\* ]+)/i";
          if (preg_match_all($ptnGroupName, $content, $matches, PREG_PATTERN_ORDER) > 0) {
             // we found at least one ##CC matching group name convention:
             for ($i=0; $i<count($matches[1]); $i++) {
