@@ -21,7 +21,7 @@ function plugin_mailanalyzer_install() {
 			";
 
        $DB->query($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
-   }else {
+   } else {
       $res = $DB->request([
                      'SELECT' => 'ENGINE',
                      'FROM'   => 'information_schema.TABLES',
@@ -256,7 +256,7 @@ class PluginMailAnalyzer {
          // change requester if needed
          // search for ##From if it exists, then try to find real requester from DB
          $locUser = new User();
-         if(isset($parm->input['itemtype']) && $parm->input['itemtype'] == 'Ticket') {
+         if (isset($parm->input['itemtype']) && $parm->input['itemtype'] == 'Ticket') {
             $ticketId = (isset($parm->input['items_id']) ? $parm->input['items_id'] : $parm->fields['items_id'] );
             $locTicket = new Ticket;
             if ($locTicket->getFromDB( $ticketId ) && isset( $parm->input['content'] )) {
