@@ -1,6 +1,6 @@
 <?php
 
-define ("PLUGIN_MAILANALYSER_VERSION", "1.6.4");
+define ("PLUGIN_MAILANALYSER_VERSION", "1.6.0");
 
 // Init the hooks of the plugins -Needed
 function plugin_init_mailanalyzer() {
@@ -13,7 +13,7 @@ function plugin_init_mailanalyzer() {
 
     $PLUGIN_HOOKS['pre_item_add']['mailanalyzer'] = [
            'Ticket' => ['PluginMailAnalyzer', 'plugin_pre_item_add_mailanalyzer'],
-           'ITILFollowup' => ['PluginMailAnalyzer', 'plugin_pre_item_add_mailanalyzer_followup']
+           'TicketFollowup' => ['PluginMailAnalyzer', 'plugin_pre_item_add_mailanalyzer_followup']
        ];
 
     $PLUGIN_HOOKS['item_add']['mailanalyzer'] = [
