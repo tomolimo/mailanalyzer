@@ -1,28 +1,5 @@
 <?php
 
-if (!function_exists('arTableExists')) {
-   function arTableExists($table) {
-      global $DB;
-      if (method_exists( $DB, 'tableExists')) {
-         return $DB->tableExists($table);
-      } else {
-         return TableExists($table);
-      }
-   }
-}
-
-
-if (!function_exists('arFieldExists')) {
-   function arFieldExists($table, $field, $usecache = true) {
-      global $DB;
-      if (method_exists( $DB, 'fieldExists')) {
-         return $DB->fieldExists($table, $field, $usecache);
-      } else {
-         return FieldExists($table, $field, $usecache);
-      }
-   }
-}
-
 /**
  * Summary of plugin_mailanalyzer_install
  * @return boolean
@@ -30,7 +7,7 @@ if (!function_exists('arFieldExists')) {
 function plugin_mailanalyzer_install() {
     global $DB;
 
-   if (!arTableExists("glpi_plugin_mailanalyzer_message_id")) {
+   if (!$DB->tableExists("glpi_plugin_mailanalyzer_message_id")) {
        $query = "CREATE TABLE `glpi_plugin_mailanalyzer_message_id` (
 				`id` INT(10) NOT NULL AUTO_INCREMENT,
 				`message_id` VARCHAR(255) NOT NULL DEFAULT '0',
@@ -40,10 +17,28 @@ function plugin_mailanalyzer_install() {
 				INDEX `ticket_id` (`ticket_id`)
 			)
 			COLLATE='utf8_general_ci'
-			ENGINE=MyISAM;
+			ENGINE=innoDB;
 			";
 
        $DB->query($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
+   } else {
+      $res = $DB->request([
+                     'SELECT' => 'ENGINE',
+                     'FROM'   => 'information_schema.TABLES',
+                     'WHERE'  => [
+                        'AND' => [
+                           'TABLE_SCHEMA' => $DB->dbdefault,
+                           'TABLE_NAME' => 'glpi_plugin_mailanalyzer_message_id'
+                        ]
+                     ]
+         ]);
+      if ($res->numrows() == 1) {
+         $row = $res->next();
+         if ($row['ENGINE'] == 'MyISAM') {
+            $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ENGINE = InnoDB";
+            $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         }
+      }
    }
 
     return true;
@@ -211,7 +206,7 @@ class PluginMailAnalyzer {
       // search for ##From if it exists, then try to find real requester from DB
       $str = str_replace(['\n', '\r\n'], "\n", $str); // to be sure that \n (end of line) will not be confused with a \ in firstname
 
-      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/im';
+      $ptnUserFullName = '/##From\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/imu';
 
       if (preg_match_all($ptnUserFullName, $str, $matches, PREG_SET_ORDER) > 0) {
          // we found at least one ##From:
@@ -220,21 +215,24 @@ class PluginMailAnalyzer {
          // else we try with name and firstname in this order
          $matches = $matches[0];
          if (isset($matches['email'])) {
-            $where = "glpi_useremails.email = '".$matches['email']."'";
+            $where2 = ['glpi_useremails.email' => $matches['email']];
          } else {
-            $where = "glpi_users.realname = '".trim( $matches['last'] )."'
-                      AND glpi_users.firstname = '".trim( $matches['first'] )."'
-                      AND glpi_useremails.is_default = 1";
+            $where2 = ['AND' => ['glpi_users.realname'         => $DB->escape(trim( $matches['last'] )),
+                                 'glpi_users.firstname'        => $DB->escape(trim( $matches['first'] )),
+                                 'glpi_useremails.is_default'  => 1
+                                 ]];
          }
-         $query = "SELECT glpi_users.id FROM glpi_users
-                    RIGHT OUTER JOIN glpi_useremails ON glpi_useremails.users_id = glpi_users.id
-                    WHERE $where
-                          AND glpi_users.is_active = 1
-                          AND glpi_users.is_deleted = 0
-                    LIMIT 1;";
-         $res = $DB->query($query);
-         if ($res) {
-            $row = $DB->fetch_array($res);
+         $where2['AND']['glpi_users.is_active'] = 1;
+         $where2['AND']['glpi_users.is_deleted'] = 0;
+         $res = $DB->request([
+            'SELECT'    => 'glpi_users.id',
+            'FROM'      => 'glpi_users',
+            'RIGHT JOIN'=> ['glpi_useremails' => ['FKEY' => ['glpi_useremails' => 'users_id', 'glpi_users' => 'id']]],
+            'WHERE'     => $where2,
+            'LIMIT'     => 1
+            ]);
+
+         if ($row = $res->next()) {
             return $row['id'];
          }
       }
@@ -258,7 +256,13 @@ class PluginMailAnalyzer {
          // change requester if needed
          // search for ##From if it exists, then try to find real requester from DB
          $locUser = new User();
-
+         if (isset($parm->input['itemtype']) && $parm->input['itemtype'] == 'Ticket') {
+            $ticketId = (isset($parm->input['items_id']) ? $parm->input['items_id'] : $parm->fields['items_id'] );
+            $locTicket = new Ticket;
+            if ($locTicket->getFromDB( $ticketId ) && isset( $parm->input['content'] )) {
+               self::addWatchers( $locTicket, $parm->input['content'] );
+            }
+         }
          $str = self::getTextFromHtml($parm->input['content']);
          $users_id = self::getUserOnBehalfOf($str);
          if ($users_id !== false) {
@@ -291,12 +295,18 @@ class PluginMailAnalyzer {
 
             // we must check if this email has not been received yet!
             // test if 'message-id' is in the DB
-            $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( message_id = '".$parm->input['_head']['message_id']."' );";
-            $res = $DB->query($query);
-         if ($DB->numrows($res) > 0) {
-             // email already received
-             // must prevent ticket creation
-             $parm->input = [ ];
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id',
+               [
+               'AND' =>
+                  [
+                  'ticket_id' => ['!=', 0],
+                  'message_id' => $parm->input['_head']['message_id']
+                  ]
+               ]);
+         if ($row = $res->next()) {
+            // email already received
+            // must prevent ticket creation
+            $parm->input = [ ];
 
              // as Ticket creation is cancelled, then email is not deleted from mailbox
              // then we need to set deletion flag to true to this email from mailbox folder
@@ -328,20 +338,21 @@ class PluginMailAnalyzer {
          }
 
          if (count( $references ) > 0) {
-
-             $query = "";
             foreach ($references as $ref) {
-               if ($query <> "") {
-                   $query .= " OR";
-               }
-                  $query .= " (message_id = '".$ref."')";
+               $messages_id[] = $ref;
             }
 
-             $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( ".$query." ) ORDER BY ticket_id DESC;";
-             $res = $DB->query($query);
-            if ($DB->numrows($res) > 0) {
-               $row = $DB->fetch_array($res);
-                    // TicketFollowup creation only if ticket status is not solved or closed
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id',
+               [
+               'AND' =>
+                  [
+                  'ticket_id' => ['!=',0],
+                  'message_id' => $messages_id
+                  ],
+                  'ORDER' => 'ticket_id DESC'
+               ]);
+            if ($row = $res->next()) {
+               // TicketFollowup creation only if ticket status is not solved or closed
                //                    echo $row['ticket_id'] ;
                $locTicket = new Ticket();
                $locTicket->getFromDB( $row['ticket_id'] );
@@ -363,8 +374,12 @@ class PluginMailAnalyzer {
                   $ticketfollowup->add($input);
 
                   // add message id to DB in case of another email will use it
-                  $query = "INSERT INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$input['_head']['message_id']."', ".$input['items_id'].");";
-                  $DB->query($query);
+                  $DB->insert(
+                     'glpi_plugin_mailanalyzer_message_id',
+                     [
+                        'message_id' => $input['_head']['message_id'],
+                        'ticket_id' => $input['items_id']
+                     ]);
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
                   $parm->input = []; // empty array...
@@ -392,12 +407,15 @@ class PluginMailAnalyzer {
             // this is a new ticket
             // then add references and message_id to DB
          foreach ($references as $ref) {
-             $query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
-             $DB->query($query);
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+            if (count($res) <= 0) {
+               $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+            }
+            //$query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
+             //$DB->query($query);
          }
 
       }
-
    }
 
     /**
@@ -406,13 +424,13 @@ class PluginMailAnalyzer {
      */
    public static function plugin_item_add_mailanalyzer($parm) {
        global $DB;
-
+       $messages_id = [];
       if (isset($parm->input['_head'])) {
           // this ticket have been created via email receiver.
           // update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
+         self::addWatchers( $parm, $parm->fields['content'] );
 
-          $query = " (message_id = '". $parm->input['_head']['message_id']."')";
-
+         $messages_id[] = $parm->input['_head']['message_id'];
           $fetchheader = [];
          $local_mailgate = false;
          if (isset($GLOBALS['mailgate'])) {
@@ -432,7 +450,7 @@ class PluginMailAnalyzer {
             // exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
             // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
             $thread_index = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 ));
-            $query .= " OR (message_id = '".$thread_index."')";
+            $messages_id[] = $thread_index;
          }
 
             // search for references
@@ -443,12 +461,23 @@ class PluginMailAnalyzer {
                $references =  $matches[0];
             }
             foreach ($references as $ref) {
-                $query .= " OR (message_id = '".$ref."')";
+               $messages_id[] = $ref;
             }
          }
-
-            $query = "UPDATE glpi_plugin_mailanalyzer_message_id SET ticket_id = ". $parm->fields['id']." WHERE ticket_id = 0 AND ( ".$query.") ;";
-            $DB->query($query);
+         $DB->update(
+            'glpi_plugin_mailanalyzer_message_id',
+            [
+            'ticket_id' => $parm->fields['id']
+            ],
+            [
+            'WHERE' =>
+               ['AND' =>
+                  [
+                  'ticket_id' => 0,
+                  'message_id' => $messages_id
+                  ]
+               ]
+            ]);
 
             // close mailgate only if localy open
          if ($local_mailgate) {
@@ -477,6 +506,91 @@ class PluginMailAnalyzer {
          $mailgate->fields['refused'] = '';
          $mailgate->fields['accepted'] = '';
       }
+   }
+
+   /**
+    * Summary of addWatchers
+    * @param mixed $parm    a Ticket
+    * @param mixed $content content that will be analyzed
+    * @return void
+    */
+   public static function addWatchers($parm, $content) {
+      // to be sure
+      if ($parm->getType() == 'Ticket') {
+         $content = str_replace(['\n', '\r\n'], "\n", $content);
+         $content = self::getTextFromHtml($content);
+         $ptnUserFullName = '/##CC\s*:\s*(["\']?(?\'last\'[\w.\-\\\\\' ]+)[, ]\s*(?\'first\'[\w+.\-\\\\\' ]+))?.*?(?\'email\'[\w_.+\-]+@[\w\-]+\.[\w\-.]+)?\W*$/imu';
+         if (preg_match_all($ptnUserFullName, $content, $matches, PREG_PATTERN_ORDER) > 0) {
+            // we found at least one ##CC matching user name convention: "Name, Firstname"
+            for ($i=0; $i<count($matches[1]); $i++) {
+               // then try to get its user id from DB
+               //$locUser = self::getFromDBbyCompleteName( trim($matches[1][$i]).' '.trim($matches[2][$i]));
+               $locUser = self::getFromDBbyCompleteName( trim($matches['last'][$i]).' '.trim($matches['first'][$i]));
+               if ($locUser) {
+                  // add user in watcher list
+                  if (!$parm->isUser( CommonITILActor::OBSERVER, $locUser->getID())) {
+                     // then we need to add this user as it is not yet in the observer list
+                     $locTicketUser = new Ticket_User;
+                     $locTicketUser->add( [ 'tickets_id' => $parm->getId(), 'users_id' => $locUser->getID(), 'type' => CommonITILActor::OBSERVER, 'use_notification' => 1] );
+                     $parm->getFromDB($parm->getId());
+                  }
+               }
+            }
+         }
+
+         //$locGroup = new ARBehavioursGroups;
+         $locGroup = new Group;
+         $ptnGroupName = "/##CC\s*:\s*([_a-z0-9-\\\\* ]+)/i";
+         if (preg_match_all($ptnGroupName, $content, $matches, PREG_PATTERN_ORDER) > 0) {
+            // we found at least one ##CC matching group name convention:
+            for ($i=0; $i<count($matches[1]); $i++) {
+               // then try to get its group id from DB
+               //if ($locGroup->getFromDBWithName( trim($matches[1][$i]))) {
+               if ($locGroup->getFromDBByCrit( ['name' => trim($matches[1][$i])])) {
+                  // add group in watcher list
+                  if (!$parm->isGroup( CommonITILActor::OBSERVER, $locGroup->getID())) {
+                     // then we need to add this group as it is not yet in the observer list
+                     $locGroup_Ticket = new Group_Ticket;
+                     $locGroup_Ticket->add( [ 'tickets_id' => $parm->getId(), 'groups_id' => $locGroup->getID(), 'type' => CommonITILActor::OBSERVER] );
+                     $parm->getFromDB($parm->getId());
+                  }
+               }
+            }
+         }
+
+      }
+   }
+
+   /**
+    * Summary of getFromDBbyCompleteName
+    * Retrieve an item from the database using its Lastname Firstname
+    * @param string $completename : family name + first name of the user ('lastname firstname')
+    * @return boolean a user if succeed else false
+    **/
+   public static function getFromDBbyCompleteName($completename) {
+      global $DB;
+      $user = new User();
+      $res = $DB->request(
+                     $user->getTable(),
+                     [
+                     'AND' => [
+                        'is_active' => 1,
+                        'is_deleted' => 0,
+                        'RAW' => [
+                           "CONCAT(realname, ' ', firstname)" => ['LIKE', addslashes($completename)]
+                        ]
+                     ]
+                     ]);
+      if ($res) {
+         if ($res->numrows() != 1) {
+            return false;
+         }
+         $user->fields = $res->next();
+         if (is_array($user->fields) && count($user->fields)) {
+            return $user;
+         }
+      }
+      return false;
    }
 }
 
