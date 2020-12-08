@@ -52,17 +52,18 @@ function plugin_version_mailanalyzer() {
  * @return bool
  */
 function plugin_mailanalyzer_check_prerequisites() {
-   if (version_compare(GLPI_VERSION, '9.5.3', 'lt') 
+   if (version_compare(GLPI_VERSION, '9.5.3', 'lt')
        && version_compare(GLPI_VERSION, '9.6', 'ge')) {
       echo "This plugin requires GLPI >= 9.5.3 and < 9.6";
       return false;
    } else {
       if (!class_exists('mailanalyzer_check_prerequisites')) {
-         class mailanalyzer_check_prerequisites { public $attr = 'value'; function __toString() { return 'empty';}};
+         class mailanalyzer_check_prerequisites { public $attr = 'value'; function __toString() {
+               return 'empty';}};
       }
       $loc = new mailanalyzer_check_prerequisites;
       $loc2 = Toolbox::addslashes_deep($loc);
-      if (is_object($loc2) && $loc->attr === $loc2->attr) { 
+      if (is_object($loc2) && $loc->attr === $loc2->attr) {
          return true;
       } else {
          echo "This plugin requires upgraded versions of mailcollector.class.php and toolbox.class.php";
