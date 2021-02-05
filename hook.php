@@ -126,7 +126,7 @@ class PluginMailAnalyzer {
          if ($row = $res->next()) {
             // email already received
             // must prevent ticket creation
-            $parm->input = [];
+            $parm->input = false; //[ ];
 
             // as Ticket creation is cancelled, then email is not deleted from mailbox
             // then we need to set deletion flag to true to this email from mailbox folder
@@ -177,13 +177,14 @@ class PluginMailAnalyzer {
                   );
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
-                  $parm->input = []; // empty array...
+                  $parm->input = false; // []; // empty array...
 
                   // as Ticket creation is cancelled, then email is not deleted from mailbox
                   // then we need to set deletion flag to true to this email from mailbox folder
                   $local_mailgate->deleteMails($uid, MailCollector::ACCEPTED_FOLDER); // OK folder
 
                   return;
+
                } else {
                   // ticket creation, but linked to the closed one...
                   $parm->input['_link'] = ['link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['ticket_id']];
@@ -253,7 +254,7 @@ class PluginMailAnalyzer {
       if (isset($message->threadindex)) {
          // exemple of thread-index : ac5rwreerb4gv3pcr8gdflszrsqhoa==
          // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
-         $messages_id[] = bin2hex(substr(imap_base64($message->threadindex), 6, 16 ));
+         $messages_id[] = bin2hex(substr(base64_decode($message->threadindex), 6, 16 ));
       }
 
       // search for 'References'
