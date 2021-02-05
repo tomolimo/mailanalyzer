@@ -6,11 +6,14 @@
     <logo>https://raw.githubusercontent.com/tomolimo/mailanalyzer/master/plugin.png</logo>
    <description>
       <short>
-         <en><![CDATA[Mail Analyzer GLPI Plugin may be used to automatically combine CC mails into one Ticket]]></en>
+        <en><![CDATA[Mail Analyzer GLPI Plugin may be used to automatically combine CC mails into one Ticket]]></en>
+        <cs><![CDATA[Zásuvný modul Analyzátor e-mailů může být použit pro automatické zkombinování e-mailů ve skryté kopii do jednoho požadavku]]></cs>
       </short>
       <long>
          <en><![CDATA[This solves the problem of duplicated Tickets when an email is sent to GLPI and CC to others, and when those CC recipees use 'Reply to All', GLPI by default will create a new ticket. See: http://glpi.userecho.com/topic/1090667-new-rule-criteria-for-mail-receivers/.
 		 In case of ping pong emails it will add the replies as followups to the Ticket initially created by the first email.]]></en>
+         <cs><![CDATA[Toto řeší problém s požadavky duplikovanými když je e-mail poslán nejen do GLPI, ale také ve skryté kopii ostatním a tito příjemci použijí „Odpovědět všem“ a GLPI ve výchozím stavu vytvoří nový požadavek. Viz: http://glpi.userecho.com/topic/1090667-new-rule-criteria-for-mail-receivers/.
+		 V případě ping pong e-mailů přidá odpovědi jako následnou komunikaci k požadavku, vytvořenému prvním e-mailem.]]></cs>
       </long>
    </description>
    <homepage>https://github.com/tomolimo/mailanalyzer</homepage>
@@ -22,11 +25,11 @@
    </authors>
    <versions>
       <version>
-         <num>1.5.1</num>
+         <num>1.5.2</num>
          <compatibility>9.3</compatibility>
       </version>
       <version>
-         <num>1.4.2</num>
+         <num>1.4.3</num>
          <compatibility>9.2</compatibility>
       </version>
       <version>
