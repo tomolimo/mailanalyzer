@@ -56,35 +56,35 @@ class PluginMailAnalyzer {
     */
    static function getAdditionnalHeaders($marubox, $mid) {
 
-       $head   = [];
-       $header = explode("\n", imap_fetchheader($marubox, $mid));
+      $head   = [];
+      $header = explode("\n", imap_fetchheader($marubox, $mid));
 
       if (is_array($header) && count($header)) {
          foreach ($header as $line) {
             if (preg_match("/^([^: ]*):\\s*/i", $line)
-                    || preg_match("/^\\s(.*)/i", $line ) ) {
-                // separate name and value
+                || preg_match("/^\\s(.*)/i", $line ) ) {
+               // separate name and value
 
                if (preg_match("/^([^: ]*): (.*)/i", $line, $arg)) {
 
                   $key = Toolbox::strtolower($arg[1]);
 
                   if (!isset($head[$key])) {
-                         $head[$key] = '';
+                     $head[$key] = '';
                   } else if ($head[$key] != '') {
-                         $head[$key] .= "\n";
+                     $head[$key] .= "\n";
                   }
 
-                          $head[$key] .= trim($arg[2]);
+                  $head[$key] .= trim($arg[2]);
 
                } else if (preg_match("/^\\s(.*)/i", $line, $arg) && !empty($key)) {
                   if (!isset($head[$key])) {
-                            $head[$key] = '';
+                     $head[$key] = '';
                   } else if ($head[$key] != '') {
-                      $head[$key] .= "\n";
+                     $head[$key] .= "\n";
                   }
 
-                        $head[$key] .= trim($arg[1]);
+                  $head[$key] .= trim($arg[1]);
 
                } else if (preg_match("/^([^:]*):/i", $line, $arg)) {
                   $key = Toolbox::strtolower($arg[1]);
@@ -93,8 +93,9 @@ class PluginMailAnalyzer {
             }
          }
       }
-        return $head;
+      return $head;
    }
+
 
     /**
     *        Search for current email in order to get its msg num, that will be stored in $mailgate->{$mailgate->pluginmailanalyzer_mid_field}.
@@ -108,7 +109,7 @@ class PluginMailAnalyzer {
    static function getHeaderAndMsgNum($mailgate, $message_id) {
 
       for ($locMsgNum = 1; $locMsgNum <= $mailgate->getTotalMails(); $locMsgNum++) {
-          $fetchheader = PluginMailAnalyzer::getAdditionnalHeaders($mailgate->marubox, $locMsgNum);
+         $fetchheader = PluginMailAnalyzer::getAdditionnalHeaders($mailgate->marubox, $locMsgNum);
          if (isset($fetchheader['message-id']) && $fetchheader['message-id'] == $message_id) {
             $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = $locMsgNum; // by default
             if ($mailgate->pluginmailanalyzer_is_uid) {
@@ -118,8 +119,9 @@ class PluginMailAnalyzer {
          }
       }
 
-         return []; // returns an empty array if not found, in this case, $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is not changed
+      return []; // returns an empty array if not found, in this case, $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is not changed
    }
+
 
     /**
     * Create default mailgate
@@ -129,13 +131,13 @@ class PluginMailAnalyzer {
     */
    static function openMailgate($mailgate_id) {
 
-       $mailgate = new MailCollector();
-       $mailgate->getFromDB($mailgate_id);
+      $mailgate = new MailCollector();
+      $mailgate->getFromDB($mailgate_id);
       self::setUIDField($mailgate);
-       $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = -1;
-       $mailgate->connect();
+      $mailgate->{$mailgate->pluginmailanalyzer_uid_field} = -1;
+      $mailgate->connect();
 
-       return $mailgate;
+      return $mailgate;
    }
 
 
@@ -160,6 +162,7 @@ class PluginMailAnalyzer {
       }
    }
 
+
    /**
     * Summary of getTextFromHtml
     * gets bare text content from HTML
@@ -175,6 +178,7 @@ class PluginMailAnalyzer {
       $ret = html_entity_decode(html_entity_decode($ret, ENT_QUOTES));
       return $ret;
    }
+
 
    /**
     * Summary of getUserOnBehalfOf
@@ -227,10 +231,10 @@ class PluginMailAnalyzer {
      * @return void
      */
    public static function plugin_pre_item_add_mailanalyzer($parm) {
-       global $DB, $GLOBALS;
+      global $DB, $GLOBALS;
 
       if (isset($parm->input['_head'])) {
-          // this ticket have been created via email receiver.
+         // this ticket have been created via email receiver.
 
          // change requester if needed
          // search for ##From if it exists, then try to find real requester from DB
@@ -257,48 +261,48 @@ class PluginMailAnalyzer {
             $mailgate = $GLOBALS['mailgate'];
             self::setUIDField($mailgate);
          } else {
-             // mailgate is not open. Called by cron
-             // then locally create a mailgate
-             $mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
+            // mailgate is not open. Called by cron
+            // then locally create a mailgate
+            $mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
             $local_mailgate = true;
          }
 
-            // try to get Thread-Index from email header
-            $fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']);
+         // try to get Thread-Index from email header
+         $fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']);
 
-            // we must check if this email has not been received yet!
-            // test if 'message-id' is in the DB
-            $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( message_id = '".$parm->input['_head']['message_id']."' );";
-            $res = $DB->query($query);
+         // we must check if this email has not been received yet!
+         // test if 'message-id' is in the DB
+         $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( message_id = '".$parm->input['_head']['message_id']."' );";
+         $res = $DB->query($query);
          if ($DB->numrows($res) > 0) {
-             // email already received
-             // must prevent ticket creation
-             $parm->input = [ ];
+            // email already received
+            // must prevent ticket creation
+            $parm->input = false; //[ ];
 
-             // as Ticket creation is cancelled, then email is not deleted from mailbox
-             // then we need to set deletion flag to true to this email from mailbox folder
-             $mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::REFUSED_FOLDER ); // NOK Folder
+            // as Ticket creation is cancelled, then email is not deleted from mailbox
+            // then we need to set deletion flag to true to this email from mailbox folder
+            $mailgate->deleteMails( $mailgate->{$mailgate->pluginmailanalyzer_uid_field}, MailCollector::REFUSED_FOLDER ); // NOK Folder
 
-             // close mailgate only if localy open
+            // close mailgate only if localy open
             if ($local_mailgate) {
-                $mailgate->close_mailbox(); // close session and delete emails marked for deletion during this session only!
+               $mailgate->close_mailbox(); // close session and delete emails marked for deletion during this session only!
             }
 
-             return;
+            return;
          }
 
-            // search for 'Thread-Index'
-            $references = [];
+         // search for 'Thread-Index'
+         $references = [];
          if (isset($fetchheader['thread-index'])) {
             // exemple of thread-index : ac5rwreerb4gv3pcr8gdflszrsqhoa==
             // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
             $references[] = bin2hex(substr(imap_base64($fetchheader['thread-index']), 6, 16 ));
          }
 
-            // this ticket has been created via an email receiver.
-            // we have to check if references can be found in DB.
+         // this ticket has been created via an email receiver.
+         // we have to check if references can be found in DB.
          if (isset($parm->input['_head']['references'])) {
-             // we may have a forwarded email that looks like reply-to
+            // we may have a forwarded email that looks like reply-to
             if (preg_match_all('/<.*?>/', $parm->input['_head']['references'], $matches)) {
                $references = array_merge($references, $matches[0]);
             }
@@ -306,19 +310,19 @@ class PluginMailAnalyzer {
 
          if (count( $references ) > 0) {
 
-             $query = "";
+            $query = "";
             foreach ($references as $ref) {
                if ($query <> "") {
-                   $query .= " OR";
+                  $query .= " OR";
                }
                   $query .= " (message_id = '".$ref."')";
             }
 
-             $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( ".$query." ) ORDER BY ticket_id DESC;";
-             $res = $DB->query($query);
+            $query = "SELECT * FROM glpi_plugin_mailanalyzer_message_id WHERE ticket_id <> 0 AND ( ".$query." ) ORDER BY ticket_id DESC;";
+            $res = $DB->query($query);
             if ($DB->numrows($res) > 0) {
                $row = $DB->fetch_array($res);
-                // TicketFollowup creation only if ticket status is not solved or closed
+               // TicketFollowup creation only if ticket status is not solved or closed
                //                    echo $row['ticket_id'] ;
                $locTicket = new Ticket();
                $locTicket->getFromDB( $row['ticket_id'] );
@@ -344,7 +348,7 @@ class PluginMailAnalyzer {
                   $DB->query($query);
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
-                  $parm->input = []; // empty array...
+                  $parm->input = false; // []; // empty array...
 
                   // as Ticket creation is cancelled, then email is not deleted from mailbox
                   // then we need to set deletion flag to true to this email from mailbox folder
@@ -356,6 +360,7 @@ class PluginMailAnalyzer {
                   }
 
                   return;
+
                } else {
                   // ticket creation, but linked to the closed one...
                   $parm->input['_link'] = ['link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['ticket_id']];
@@ -363,48 +368,48 @@ class PluginMailAnalyzer {
             }
          }
 
-            // can't find ref into DB, then this is a new ticket, in this case insert refs and message_id into DB
-            $references[] = $parm->input['_head']['message_id'];
+         // can't find ref into DB, then this is a new ticket, in this case insert refs and message_id into DB
+         $references[] = $parm->input['_head']['message_id'];
 
-            // this is a new ticket
-            // then add references and message_id to DB
+         // this is a new ticket
+         // then add references and message_id to DB
          foreach ($references as $ref) {
-             $query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
-             $DB->query($query);
+            $query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
+            $DB->query($query);
          }
 
       }
 
    }
 
-    /**
-     * Summary of plugin_item_add_mailanalyzer
-     * @param mixed $parm
-     */
+   /**
+    * Summary of plugin_item_add_mailanalyzer
+    * @param mixed $parm
+   */
    public static function plugin_item_add_mailanalyzer($parm) {
-       global $DB;
+      global $DB;
 
       if (isset($parm->input['_head'])) {
-          // this ticket have been created via email receiver.
-          // update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
+         // this ticket have been created via email receiver.
+         // update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
 
-          $query = " (message_id = '". $parm->input['_head']['message_id']."')";
+         $query = " (message_id = '". $parm->input['_head']['message_id']."')";
 
-          $fetchheader = [];
+         $fetchheader = [];
          $local_mailgate = false;
          if (isset($GLOBALS['mailgate'])) {
             // mailgate has been open by web page call, then use it
             $mailgate = $GLOBALS['mailgate'];
             self::setUIDField($mailgate);
          } else {
-             $mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
+            $mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
             $local_mailgate = true;
          }
 
-            // try to get Thread-Index from email header
-            $fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']);
+         // try to get Thread-Index from email header
+         $fetchheader = PluginMailAnalyzer::getHeaderAndMsgNum($mailgate, $parm->input['_head']['message_id']);
 
-            // search for 'Thread-Index: '
+         // search for 'Thread-Index: '
          if (isset($fetchheader['thread-index'])) {
             // exemple of thread-index : Ac5rWReeRb4gv3pCR8GDflsZrsqhoA==
             // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
@@ -420,16 +425,16 @@ class PluginMailAnalyzer {
                $references =  $matches[0];
             }
             foreach ($references as $ref) {
-                $query .= " OR (message_id = '".$ref."')";
+               $query .= " OR (message_id = '".$ref."')";
             }
          }
 
-            $query = "UPDATE glpi_plugin_mailanalyzer_message_id SET ticket_id = ". $parm->fields['id']." WHERE ticket_id = 0 AND ( ".$query.") ;";
-            $DB->query($query);
+         $query = "UPDATE glpi_plugin_mailanalyzer_message_id SET ticket_id = ". $parm->fields['id']." WHERE ticket_id = 0 AND ( ".$query.") ;";
+         $DB->query($query);
 
-            // close mailgate only if localy open
+         // close mailgate only if localy open
          if ($local_mailgate) {
-             $mailgate->close_mailbox();
+            $mailgate->close_mailbox();
          }
 
       }
