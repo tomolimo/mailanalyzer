@@ -114,6 +114,7 @@ class PluginMailAnalyzer {
         return $head;
    }
 
+
     /**
     *        Search for current email in order to get its msg num, that will be stored in $mailgate->{$mailgate->pluginmailanalyzer_mid_field}.
     *        The only way to find the right email in the current mailbox is to look for "message-id" property
@@ -138,6 +139,7 @@ class PluginMailAnalyzer {
 
          return []; // returns an empty array if not found, in this case, $mailgate->{$mailgate->pluginmailanalyzer_mid_field} is not changed
    }
+
 
     /**
     * Create default mailgate
@@ -178,6 +180,7 @@ class PluginMailAnalyzer {
       }
    }
 
+
    /**
     * Summary of getTextFromHtml
     * gets bare text content from HTML
@@ -193,6 +196,7 @@ class PluginMailAnalyzer {
       $ret = html_entity_decode(html_entity_decode($ret, ENT_QUOTES));
       return $ret;
    }
+
 
    /**
     * Summary of getUserOnBehalfOf
@@ -215,20 +219,20 @@ class PluginMailAnalyzer {
          // else we try with name and firstname in this order
          $matches = $matches[0];
          if (isset($matches['email'])) {
-            $where2 = ['glpi_useremails.email' => $matches['email']];
+            $where = ['glpi_useremails.email' => $matches['email']];
          } else {
-            $where2 = ['AND' => ['glpi_users.realname'         => $DB->escape(trim( $matches['last'] )),
+            $where = ['AND' => ['glpi_users.realname'         => $DB->escape(trim( $matches['last'] )),
                                  'glpi_users.firstname'        => $DB->escape(trim( $matches['first'] )),
                                  'glpi_useremails.is_default'  => 1
                                  ]];
          }
-         $where2['AND']['glpi_users.is_active'] = 1;
-         $where2['AND']['glpi_users.is_deleted'] = 0;
+         $where['AND']['glpi_users.is_active']  = 1;
+         $where['AND']['glpi_users.is_deleted'] = 0;
          $res = $DB->request([
             'SELECT'    => 'glpi_users.id',
             'FROM'      => 'glpi_users',
             'RIGHT JOIN'=> ['glpi_useremails' => ['FKEY' => ['glpi_useremails' => 'users_id', 'glpi_users' => 'id']]],
-            'WHERE'     => $where2,
+            'WHERE'     => $where,
             'LIMIT'     => 1
             ]);
 
@@ -306,7 +310,7 @@ class PluginMailAnalyzer {
          if ($row = $res->next()) {
             // email already received
             // must prevent ticket creation
-            $parm->input = [ ];
+            $parm->input = false; //[ ];
 
              // as Ticket creation is cancelled, then email is not deleted from mailbox
              // then we need to set deletion flag to true to this email from mailbox folder
@@ -382,7 +386,7 @@ class PluginMailAnalyzer {
                      ]);
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
-                  $parm->input = []; // empty array...
+                  $parm->input = false; // []; // empty array...
 
                   // as Ticket creation is cancelled, then email is not deleted from mailbox
                   // then we need to set deletion flag to true to this email from mailbox folder
@@ -394,6 +398,7 @@ class PluginMailAnalyzer {
                   }
 
                   return;
+
                } else {
                   // ticket creation, but linked to the closed one...
                   $parm->input['_link'] = ['link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['ticket_id']];
@@ -411,8 +416,7 @@ class PluginMailAnalyzer {
             if (count($res) <= 0) {
                $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
             }
-            //$query = "INSERT IGNORE INTO glpi_plugin_mailanalyzer_message_id (message_id, ticket_id) VALUES ('".$ref."', 0);";
-             //$DB->query($query);
+
          }
 
       }
