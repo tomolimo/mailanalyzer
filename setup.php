@@ -1,6 +1,6 @@
 <?php
 
-define ("PLUGIN_MAILANALYZER_VERSION", "2.0.1");
+define ("PLUGIN_MAILANALYZER_VERSION", "2.0.2");
 
 /**
  * Summary of plugin_init_mailanalyzer

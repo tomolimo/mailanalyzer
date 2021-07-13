@@ -153,7 +153,7 @@ class PluginMailAnalyzer {
                // TicketFollowup creation only if ticket status is not solved or closed
                $locTicket = new Ticket();
                $locTicket->getFromDB((integer)$row['ticket_id']);
-               if ($locTicket->fields['status'] !=  CommonITILObject::SOLVED && $locTicket->fields['status'] != CommonITILObject::CLOSED) {
+               if ($locTicket->fields['status'] != CommonITILObject::CLOSED) {
                   $ticketfollowup = new ITILFollowup();
                   $input = $parm->input;
                   $input['items_id'] = $row['ticket_id'];
