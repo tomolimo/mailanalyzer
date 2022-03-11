@@ -9,16 +9,16 @@ function plugin_mailanalyzer_install() {
 
    if (!$DB->tableExists("glpi_plugin_mailanalyzer_message_id")) {
          $query = "CREATE TABLE `glpi_plugin_mailanalyzer_message_id` (
-			   `id` INT(10) NOT NULL AUTO_INCREMENT,
-			   `message_id` VARCHAR(255) NOT NULL DEFAULT '0',
-			   `ticket_id` INT(10) NOT NULL DEFAULT '0',
-			   PRIMARY KEY (`id`),
-			   UNIQUE INDEX `message_id` (`message_id`),
-			   INDEX `ticket_id` (`ticket_id`)
-		   )
-		   COLLATE='utf8_general_ci'
-		   ENGINE=innoDB;
-		   ";
+            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `message_id` VARCHAR(255) NOT NULL DEFAULT '0',
+            `tickets_id` INT(11) NOT NULL DEFAULT '0',
+            PRIMARY KEY (`id`),
+            UNIQUE INDEX `message_id` (`message_id`),
+            INDEX `tickets_id` (`tickets_id`)
+         )
+         COLLATE='utf8_general_ci'
+         ENGINE=innoDB;
+         ";
 
          $DB->query($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
    } else {
@@ -26,6 +26,16 @@ function plugin_mailanalyzer_install() {
          $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ENGINE = InnoDB";
          $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
       }
+   }
+
+   if (!$DB->fieldExists('glpi_plugin_mailanalyzer_message_id', 'tickets_id')) {
+      // then we must change the name and the length of id and ticket_id to 11
+      $query = "ALTER TABLE `glpi_plugin_mailanalyzer_message_id`
+                  CHANGE COLUMN `id` `id` INT(11) NOT NULL AUTO_INCREMENT FIRST,
+                  CHANGE COLUMN `ticket_id` `tickets_id` INT(11) NOT NULL DEFAULT '0' AFTER `message_id`,
+                  DROP INDEX `ticket_id`,
+                  ADD INDEX `ticket_id` (`tickets_id`);";
+      $DB->query($query) or die('Cannot alter glpi_plugin_mailanalyzer_message_id table! ' .  $DB->error());
    }
 
    return true;
@@ -45,6 +55,9 @@ function plugin_mailanalyzer_uninstall() {
 }
 
 
+/**
+ * Summary of PluginMailAnalyzer
+ */
 class PluginMailAnalyzer {
 
    /**
@@ -117,7 +130,7 @@ class PluginMailAnalyzer {
             [
             'AND' =>
                [
-               'ticket_id'  => ['!=', 0],
+               'tickets_id'  => ['!=', 0],
                'message_id' => $messageId
                ]
             ]
@@ -143,20 +156,20 @@ class PluginMailAnalyzer {
                'glpi_plugin_mailanalyzer_message_id',
                ['AND' =>
                   [
-                  'ticket_id'  => ['!=',0],
+                  'tickets_id'  => ['!=',0],
                   'message_id' => $messages_id
                   ],
-                  'ORDER' => 'ticket_id DESC'
+                  'ORDER' => 'tickets_id DESC'
                ]
             );
             if ($row = $res->next()) {
                // TicketFollowup creation only if ticket status is not closed
                $locTicket = new Ticket();
-               $locTicket->getFromDB((integer)$row['ticket_id']);
+               $locTicket->getFromDB((integer)$row['tickets_id']);
                if ($locTicket->fields['status'] != CommonITILObject::CLOSED) {
                   $ticketfollowup = new ITILFollowup();
                   $input = $parm->input;
-                  $input['items_id'] = $row['ticket_id'];
+                  $input['items_id'] = $row['tickets_id'];
                   $input['users_id'] = $parm->input['_users_id_requester'];
                   $input['add_reopen'] = 1;
                   $input['itemtype'] = 'Ticket';
@@ -172,7 +185,7 @@ class PluginMailAnalyzer {
                      'glpi_plugin_mailanalyzer_message_id',
                      [
                         'message_id' => $messageId,
-                        'ticket_id'  => $input['items_id']
+                        'tickets_id'  => $input['items_id']
                      ]
                   );
 
@@ -187,7 +200,7 @@ class PluginMailAnalyzer {
 
                } else {
                   // ticket creation, but linked to the closed one...
-                  $parm->input['_link'] = ['link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['ticket_id']];
+                  $parm->input['_link'] = ['link' => '1', 'tickets_id_1' => '0', 'tickets_id_2' => $row['tickets_id']];
                }
             }
          }
@@ -215,7 +228,7 @@ class PluginMailAnalyzer {
       global $DB;
       if (isset($parm->input['_mailgate'])) {
          // this ticket have been created via email receiver.
-         // update the ticket ID for the message_id only for newly created tickets (ticket_id == 0)
+         // update the ticket ID for the message_id only for newly created tickets (tickets_id == 0)
 
          // Are 'Thread-Index' or 'Refrences' present?
          $messages_id = self::getMailReferences($parm->input['_message']);
@@ -224,14 +237,14 @@ class PluginMailAnalyzer {
          $DB->update(
             'glpi_plugin_mailanalyzer_message_id',
             [
-               'ticket_id' => $parm->fields['id']
+               'tickets_id' => $parm->fields['id']
             ],
             [
                'WHERE' =>
                   [
                      'AND' =>
                         [
-                           'ticket_id'  => 0,
+                           'tickets_id'  => 0,
                            'message_id' => $messages_id
                         ]
                   ]
@@ -243,7 +256,7 @@ class PluginMailAnalyzer {
 
    /**
     * Summary of getMailReferences
-    * @param Laminas\Mail\Storage\Message $message 
+    * @param Laminas\Mail\Storage\Message $message
     * @return array
     */
    private static function getMailReferences(Laminas\Mail\Storage\Message $message) {
@@ -266,6 +279,18 @@ class PluginMailAnalyzer {
       }
 
       return $messages_id;
+   }
+
+
+   /**
+    * Summary of plugin_item_purge_mailanalyzer
+    * @param mixed $item
+    */
+   static function plugin_item_purge_mailanalyzer($item) {
+      Global $DB;
+      // the ticket is purged, then we are going to purge the matching rows in glpi_plugin_mailanalyzer_message_id table
+      // DELETE FROM glpi_plugin
+      $DB->delete('glpi_plugin_mailanalyzer_message_id', ['tickets_id' => $item->getID()]);
    }
 }
 
