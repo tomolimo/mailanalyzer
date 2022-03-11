@@ -1,6 +1,6 @@
 <?php
 
-define ("PLUGIN_MAILANALYZER_VERSION", "2.0.2");
+define ("PLUGIN_MAILANALYZER_VERSION", "2.1.0");
 
 /**
  * Summary of plugin_init_mailanalyzer
@@ -21,6 +21,11 @@ function plugin_init_mailanalyzer() {
    $PLUGIN_HOOKS['item_add']['mailanalyzer'] = [
       'Ticket' => ['PluginMailAnalyzer', 'plugin_item_add_mailanalyzer']
    ];
+
+   $PLUGIN_HOOKS['item_purge']['mailanalyzer'] = [
+      'Ticket' => ['PluginMailAnalyzer', 'plugin_item_purge_mailanalyzer']
+   ];
+
 }
 
 
