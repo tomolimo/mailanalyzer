@@ -44,7 +44,7 @@ function plugin_version_mailanalyzer() {
       'requirements' => [
          'glpi' => [
             'min' => '9.5.3',
-            'max' => '9.6'
+            'max' => '10'
             ]
          ]
    ];
@@ -58,8 +58,8 @@ function plugin_version_mailanalyzer() {
  */
 function plugin_mailanalyzer_check_prerequisites() {
    if (version_compare(GLPI_VERSION, '9.5.3', 'lt')
-       && version_compare(GLPI_VERSION, '9.6', 'ge')) {
-      echo "This plugin requires GLPI >= 9.5.3 and < 9.6";
+       && version_compare(GLPI_VERSION, '10', 'ge')) {
+      echo "This plugin requires GLPI >= 9.5.3 and < 10";
       return false;
    } else {
       if (!class_exists('mailanalyzer_check_prerequisites')) {

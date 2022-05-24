@@ -136,7 +136,7 @@ class PluginMailAnalyzer {
             ]
          );
 
-         if ($row = $res->next()) {
+         if ($row = $res->current()) {
             // email already received
             // must prevent ticket creation
             $parm->input = false; //[ ];
@@ -162,7 +162,7 @@ class PluginMailAnalyzer {
                   'ORDER' => 'tickets_id DESC'
                ]
             );
-            if ($row = $res->next()) {
+            if ($row = $res->current()) {
                // TicketFollowup creation only if ticket status is not closed
                $locTicket = new Ticket();
                $locTicket->getFromDB((integer)$row['tickets_id']);
