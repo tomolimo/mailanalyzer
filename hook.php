@@ -1,4 +1,5 @@
 <?php
+use Symfony\Component\Console\Event\ConsoleCommandEvent;
 
 /**
  * Summary of plugin_mailanalyzer_install
@@ -9,14 +10,14 @@ function plugin_mailanalyzer_install() {
 
    if (!$DB->tableExists("glpi_plugin_mailanalyzer_message_id")) {
          $query = "CREATE TABLE `glpi_plugin_mailanalyzer_message_id` (
-            `id` INT(11) NOT NULL AUTO_INCREMENT,
+            `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `message_id` VARCHAR(255) NOT NULL DEFAULT '0',
-            `tickets_id` INT(11) NOT NULL DEFAULT '0',
+            `tickets_id` INT UNSIGNED NOT NULL DEFAULT '0',
             PRIMARY KEY (`id`),
             UNIQUE INDEX `message_id` (`message_id`),
             INDEX `tickets_id` (`tickets_id`)
          )
-         COLLATE='utf8_general_ci'
+         COLLATE='utf8mb4_unicode_ci'
          ENGINE=innoDB;
          ";
 
@@ -31,8 +32,8 @@ function plugin_mailanalyzer_install() {
    if (!$DB->fieldExists('glpi_plugin_mailanalyzer_message_id', 'tickets_id')) {
       // then we must change the name and the length of id and ticket_id to 11
       $query = "ALTER TABLE `glpi_plugin_mailanalyzer_message_id`
-                  CHANGE COLUMN `id` `id` INT(11) NOT NULL AUTO_INCREMENT FIRST,
-                  CHANGE COLUMN `ticket_id` `tickets_id` INT(11) NOT NULL DEFAULT '0' AFTER `message_id`,
+                  CHANGE COLUMN `id` `id` INT UNSIGNED NOT NULL AUTO_INCREMENT FIRST,
+                  CHANGE COLUMN `ticket_id` `tickets_id` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `message_id`,
                   DROP INDEX `ticket_id`,
                   ADD INDEX `ticket_id` (`tickets_id`);";
       $DB->query($query) or die('Cannot alter glpi_plugin_mailanalyzer_message_id table! ' .  $DB->error());
@@ -116,7 +117,7 @@ class PluginMailAnalyzer {
             $local_mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
             if ($local_mailgate === false) {
                // can't connect to the mail server, then cancel ticket creation
-               $parm->input = []; // empty array...
+               $parm->input = false;// []; // empty array...
                return;
             }
          }
@@ -135,8 +136,7 @@ class PluginMailAnalyzer {
                ]
             ]
          );
-
-         if ($row = $res->next()) {
+         if ($row = $res->current()) {
             // email already received
             // must prevent ticket creation
             $parm->input = false; //[ ];
@@ -162,7 +162,7 @@ class PluginMailAnalyzer {
                   'ORDER' => 'tickets_id DESC'
                ]
             );
-            if ($row = $res->next()) {
+            if ($row = $res->current()) {
                // TicketFollowup creation only if ticket status is not closed
                $locTicket = new Ticket();
                $locTicket->getFromDB((integer)$row['tickets_id']);
