@@ -1,6 +1,6 @@
 <?php
 
-define ("PLUGIN_MAILANALYZER_VERSION", "2.1.0");
+define ("PLUGIN_MAILANALYZER_VERSION", "3.0.0");
 
 /**
  * Summary of plugin_init_mailanalyzer
@@ -10,7 +10,7 @@ function plugin_init_mailanalyzer() {
 
    global $PLUGIN_HOOKS;
 
-   Plugin::registerClass('PluginMailAnalyzer', ['classname' => 'PluginMailAnalyzer']);
+   Plugin::registerClass('PluginMailAnalyzer');
 
    $PLUGIN_HOOKS['csrf_compliant']['mailanalyzer'] = true;
 
@@ -43,8 +43,8 @@ function plugin_version_mailanalyzer() {
       'homepage'     => 'https://github.com/tomolimo/mailanalyzer',
       'requirements' => [
          'glpi' => [
-            'min' => '9.5.3',
-            'max' => '9.6'
+            'min' => '10.0',
+            'max' => '10.1'
             ]
          ]
    ];
@@ -57,9 +57,9 @@ function plugin_version_mailanalyzer() {
  * @return bool
  */
 function plugin_mailanalyzer_check_prerequisites() {
-   if (version_compare(GLPI_VERSION, '9.5.3', 'lt')
-       && version_compare(GLPI_VERSION, '9.6', 'ge')) {
-      echo "This plugin requires GLPI >= 9.5.3 and < 9.6";
+   if (version_compare(GLPI_VERSION, '10.0', 'lt')
+       && version_compare(GLPI_VERSION, '10.1', 'ge')) {
+      echo "This plugin requires GLPI >= 10.0 and < 10.1";
       return false;
    } else {
       if (!class_exists('mailanalyzer_check_prerequisites')) {
