@@ -13,8 +13,9 @@ function plugin_mailanalyzer_install() {
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `message_id` VARCHAR(255) NOT NULL DEFAULT '0',
             `tickets_id` INT UNSIGNED NOT NULL DEFAULT '0',
+			`mailgate_id` int(10) NOT NULL DEFAULT '0',
             PRIMARY KEY (`id`),
-            UNIQUE INDEX `message_id` (`message_id`),
+            UNIQUE INDEX `message_id` (`message_id`,`mailgate_id`),
             INDEX `tickets_id` (`tickets_id`)
          )
          COLLATE='utf8mb4_unicode_ci'
@@ -29,6 +30,20 @@ function plugin_mailanalyzer_install() {
       }
    }
 
+ if (!$DB->fieldExists("glpi_plugin_mailanalyzer_message_id","mailgate_id"))
+ {
+      //STEP - ADD MAILGATE_ID
+         $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ADD COLUMN `mailgate_id` int(10) NOT NULL DEFAULT 0 AFTER `message_id`";
+         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+
+      //STEP - REMOVE UNICITY CONSTRAINT
+         $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id DROP INDEX `message_id`";
+         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+      //STEP - ADD NEW UNICITY CONSTRAINT
+         $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ADD UNIQUE KEY `message_id` (`message_id`,`mailgate_id`);";
+         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+ }
+		 
    if (!$DB->fieldExists('glpi_plugin_mailanalyzer_message_id', 'tickets_id')) {
       // then we must change the name and the length of id and ticket_id to 11
       $query = "ALTER TABLE `glpi_plugin_mailanalyzer_message_id`
@@ -38,7 +53,6 @@ function plugin_mailanalyzer_install() {
                   ADD INDEX `ticket_id` (`tickets_id`);";
       $DB->query($query) or die('Cannot alter glpi_plugin_mailanalyzer_message_id table! ' .  $DB->error());
    }
-
    return true;
 }
 
@@ -117,7 +131,7 @@ class PluginMailAnalyzer {
             $local_mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
             if ($local_mailgate === false) {
                // can't connect to the mail server, then cancel ticket creation
-               $parm->input = false;// []; // empty array...
+               $parm->input = false; //[]; // empty array...
                return;
             }
          }
@@ -125,6 +139,7 @@ class PluginMailAnalyzer {
          // we must check if this email has not been received yet!
          // test if 'message-id' is in the DB
          $messageId = $parm->input['_message']->messageid;
+		 $mailgateId = $local_mailgate->fields['id'];
          $uid = $parm->input['_uid'];
          $res = $DB->request(
             'glpi_plugin_mailanalyzer_message_id',
@@ -132,14 +147,15 @@ class PluginMailAnalyzer {
             'AND' =>
                [
                'tickets_id'  => ['!=', 0],
-               'message_id' => $messageId
+               'message_id' => $messageId,
+			   'mailgate_id' => $mailgateId
                ]
             ]
          );
          if ($row = $res->current()) {
             // email already received
             // must prevent ticket creation
-            $parm->input = false; //[ ];
+            $parm->input = false; //[];
 
             // as Ticket creation is cancelled, then email is not deleted from mailbox
             // then we need to set deletion flag to true to this email from mailbox folder
@@ -157,7 +173,8 @@ class PluginMailAnalyzer {
                ['AND' =>
                   [
                   'tickets_id'  => ['!=',0],
-                  'message_id' => $messages_id
+                  'message_id' => $messages_id,
+				  'mailgate_id' => $mailgateId
                   ],
                   'ORDER' => 'tickets_id DESC'
                ]
@@ -185,12 +202,13 @@ class PluginMailAnalyzer {
                      'glpi_plugin_mailanalyzer_message_id',
                      [
                         'message_id' => $messageId,
-                        'tickets_id'  => $input['items_id']
+                        'tickets_id'  => $input['items_id'],
+						'mailgate_id' => $mailgateId
                      ]
                   );
 
                   // prevent Ticket creation. Unfortunately it will return an error to receiver when started manually from web page
-                  $parm->input = false; // []; // empty array...
+                  $parm->input = false; //[]; // empty array...
 
                   // as Ticket creation is cancelled, then email is not deleted from mailbox
                   // then we need to set deletion flag to true to this email from mailbox folder
@@ -211,9 +229,9 @@ class PluginMailAnalyzer {
          // this is a new ticket
          // then add references and message_id to DB
          foreach ($messages_id as $ref) {
-            $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref, 'mailgate_id' => $mailgateId]);
             if (count($res) <= 0) {
-               $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+               $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref, 'mailgate_id' => $mailgateId]);
             }
          }
       }
@@ -287,7 +305,7 @@ class PluginMailAnalyzer {
     * @param mixed $item
     */
    static function plugin_item_purge_mailanalyzer($item) {
-      Global $DB;
+      global $DB;
       // the ticket is purged, then we are going to purge the matching rows in glpi_plugin_mailanalyzer_message_id table
       // DELETE FROM glpi_plugin
       $DB->delete('glpi_plugin_mailanalyzer_message_id', ['tickets_id' => $item->getID()]);
