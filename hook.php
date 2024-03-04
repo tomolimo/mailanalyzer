@@ -13,8 +13,9 @@ function plugin_mailanalyzer_install() {
             `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
             `message_id` VARCHAR(255) NOT NULL DEFAULT '0',
             `tickets_id` INT UNSIGNED NOT NULL DEFAULT '0',
+               `mailcollectors_id` int UNSIGNED NOT NULL DEFAULT '0',
             PRIMARY KEY (`id`),
-            UNIQUE INDEX `message_id` (`message_id`),
+            UNIQUE INDEX `message_id` (`message_id`,`mailcollectors_id`),
             INDEX `tickets_id` (`tickets_id`)
          )
          COLLATE='utf8mb4_unicode_ci'
@@ -27,6 +28,28 @@ function plugin_mailanalyzer_install() {
          $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ENGINE = InnoDB";
          $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
       }
+   }
+   if ($DB->fieldExists("glpi_plugin_mailanalyzer_message_id","mailgate_id"))
+   {
+      //STEP - UPDATE MAILGATE_ID INTO MAILCOLLECTORS_ID
+      $query = "ALTER TABLE `glpi_plugin_mailanalyzer_message_id`
+                CHANGE COLUMN `mailgate_id` `mailcollectors_id` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `message_id`,
+                DROP INDEX `message_id`,
+                ADD UNIQUE INDEX `message_id` (`message_id`, `mailcollectors_id`) USING BTREE;";
+      $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+   }
+   if (!$DB->fieldExists("glpi_plugin_mailanalyzer_message_id","mailcollectors_id"))
+   {
+      //STEP - ADD mailcollectors_id
+         $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ADD COLUMN `mailcollectors_id` int UNSIGNED NOT NULL DEFAULT 0 AFTER `message_id`";
+         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+
+      //STEP - REMOVE UNICITY CONSTRAINT
+         $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id DROP INDEX `message_id`";
+         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+      //STEP - ADD NEW UNICITY CONSTRAINT
+         $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ADD UNIQUE KEY `message_id` (`message_id`,`mailcollectors_id`);";
+         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
    }
 
    if (!$DB->fieldExists('glpi_plugin_mailanalyzer_message_id', 'tickets_id')) {
@@ -63,14 +86,14 @@ class PluginMailAnalyzer {
 
    /**
     * Create default mailgate
-    * @param int $mailgate_id is the id of the mail collector in GLPI DB
+    * @param int $mailcollectors_id is the id of the mail collector in GLPI DB
     * @return bool|MailCollector
     *
    */
-   static function openMailgate($mailgate_id) {
+   static function openMailgate($mailcollectors_id) {
 
       $mailgate = new MailCollector();
-      $mailgate->getFromDB($mailgate_id);
+      $mailgate->getFromDB($mailcollectors_id);
 
       $mailgate->uid          = -1;
       //Connect to the Mail Box
@@ -125,6 +148,7 @@ class PluginMailAnalyzer {
          // we must check if this email has not been received yet!
          // test if 'message-id' is in the DB
          $messageId = $parm->input['_message']->messageid;
+           $mailgateId = $local_mailgate->fields['id'];
          $uid = $parm->input['_uid'];
          $res = $DB->request(
             'glpi_plugin_mailanalyzer_message_id',
@@ -132,7 +156,8 @@ class PluginMailAnalyzer {
             'AND' =>
                [
                'tickets_id'  => ['!=', 0],
-               'message_id' => $messageId
+               'message_id' => $messageId,
+                  'mailcollectors_id' => $mailgateId
                ]
             ]
          );
@@ -157,7 +182,8 @@ class PluginMailAnalyzer {
                ['AND' =>
                   [
                   'tickets_id'  => ['!=',0],
-                  'message_id' => $messages_id
+                  'message_id' => $messages_id,
+                      'mailcollectors_id' => $mailgateId
                   ],
                   'ORDER' => 'tickets_id DESC'
                ]
@@ -184,8 +210,9 @@ class PluginMailAnalyzer {
                   $DB->insert(
                      'glpi_plugin_mailanalyzer_message_id',
                      [
-                        'message_id' => $messageId,
-                        'tickets_id'  => $input['items_id']
+                        'message_id'        => $messageId,
+                        'tickets_id'        => $input['items_id'],
+                        'mailcollectors_id' => $mailgateId
                      ]
                   );
 
@@ -211,9 +238,9 @@ class PluginMailAnalyzer {
          // this is a new ticket
          // then add references and message_id to DB
          foreach ($messages_id as $ref) {
-            $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+            $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref, 'mailcollectors_id' => $mailgateId]);
             if (count($res) <= 0) {
-               $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref]);
+               $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref, 'mailcollectors_id' => $mailgateId]);
             }
          }
       }
@@ -278,7 +305,7 @@ class PluginMailAnalyzer {
          }
       }
 
-      return $messages_id;
+      return array_filter($messages_id, function($val) {return trim($val, '< >') != '';});
    }
 
 
@@ -287,7 +314,7 @@ class PluginMailAnalyzer {
     * @param mixed $item
     */
    static function plugin_item_purge_mailanalyzer($item) {
-      Global $DB;
+      global $DB;
       // the ticket is purged, then we are going to purge the matching rows in glpi_plugin_mailanalyzer_message_id table
       // DELETE FROM glpi_plugin
       $DB->delete('glpi_plugin_mailanalyzer_message_id', ['tickets_id' => $item->getID()]);
