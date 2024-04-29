@@ -1,0 +1,6 @@
+* text=auto !eol
+/README.md -text
+/hook.php -text
+/mailanalyzer.xml -text
+/plugin.png -text
+/setup.php -text
