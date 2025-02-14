@@ -171,7 +171,7 @@ class PluginMailAnalyzer {
 
          // we must check if this email has not been received yet!
          // test if 'message-id' is in the DB
-         $messageId = $parm->input['_message']->messageid;
+         $messageId = html_entity_decode($parm->input['_head']['message_id']);
          $mailgateId = $local_mailgate->fields['id'];
          $uid = $parm->input['_uid'];
          $res = $DB->request(
@@ -198,7 +198,11 @@ class PluginMailAnalyzer {
          }
 
          // search for 'Thread-Index' and 'References'
-         $messages_id = self::getMailReferences($parm->input['_message']);
+	 //error_log(print_r($parm,1));
+	 
+	      $mesid['references'] = html_entity_decode($parm->input['_head']['references'] ?? null); //html_entity_decode to compatibility with previous messages_id
+	      $mesid['threadindex'] = html_entity_decode($parm->input['_head']['threadindex'] ?? null); //html_entity_decode to compatibility with previous messages_id
+         $messages_id = self::getMailReferences($mesid);
 
          if (count($messages_id) > 0) {
             $res = $DB->request(
@@ -281,9 +285,11 @@ class PluginMailAnalyzer {
          // this ticket have been created via email receiver.
          // update the ticket ID for the message_id only for newly created tickets (tickets_id == 0)
 
-         // Are 'Thread-Index' or 'Refrences' present?
-         $messages_id = self::getMailReferences($parm->input['_message']);
-         $messages_id[] = $parm->input['_message']->messageid;
+	      // Are 'Thread-Index' or 'Refrences' present?
+	      $mesid['references'] = html_entity_decode($parm->input['_head']['references'] ?? null);//html_entity_decode to compatibility with previous messages_id
+	      $mesid['threadindex'] = html_entity_decode($parm->input['_head']['threadindex'] ?? null);//html_entity_decode to compatibility with previous messages_id
+         $messages_id = self::getMailReferences($mesid);
+         $messages_id[] = html_entity_decode($parm->input['_head']['message_id']);
 
          $DB->update(
             'glpi_plugin_mailanalyzer_message_id',
@@ -310,23 +316,23 @@ class PluginMailAnalyzer {
     * @param Laminas\Mail\Storage\Message $message
     * @return array
     */
-   private static function getMailReferences(Laminas\Mail\Storage\Message $message) {
+   private static function getMailReferences(Array $message) {
 
       $messages_id = []; // by default
 
       $config = Config::getConfigurationValues('plugin:mailanalyzer');
 
       // search for 'Thread-Index'
-      if (isset($message->threadindex) && isset($config['use_threadindex']) && $config['use_threadindex']) {
+      if (!empty($message['threadindex']) && isset($config['use_threadindex']) && $config['use_threadindex']) {
          // exemple of thread-index : ac5rwreerb4gv3pcr8gdflszrsqhoa==
          // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
-         $messages_id[] = bin2hex(substr(base64_decode($message->threadindex), 6, 16 ));
+         $messages_id[] = bin2hex(substr(base64_decode($message['threadindex']), 6, 16 ));
       }
 
       // search for 'References'
-      if (isset($message->references)) {
+      if (!empty($message['references'])) {
          // we may have a forwarded email that looks like reply-to
-         if (preg_match_all('/<.*?>/', $message->references, $matches)) {
+         if (preg_match_all('/<.*?>/', $message['references'], $matches)) {
             $messages_id = array_merge($messages_id, $matches[0]);
          }
       }
@@ -347,4 +353,5 @@ class PluginMailAnalyzer {
       $DB->delete('glpi_plugin_mailanalyzer_message_id', ['tickets_id' => $item->getID()]);
    }
 }
+
 
