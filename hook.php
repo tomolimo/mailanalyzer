@@ -2,7 +2,7 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2024 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
 
 https://www.araymond.com/
 -------------------------------------------------------------------------
@@ -112,31 +112,13 @@ class PluginMailAnalyzer {
     * Create default mailgate
     * @param int $mailcollectors_id is the id of the mail collector in GLPI DB
     * @return bool|MailCollector
-    *
    */
-   static function openMailgate($mailcollectors_id) {
+   static function openMailgate($mailcollectors_id) : PluginMailanalyzerMailCollector {
 
-      $mailgate = new MailCollector();
+      $mailgate = new PluginMailanalyzerMailCollector();
       $mailgate->getFromDB($mailcollectors_id);
-
-      $mailgate->uid          = -1;
-      //Connect to the Mail Box
-      try {
-         $mailgate->connect();
-      } catch (Throwable $e) {
-         Toolbox::logError(
-            'An error occured trying to connect to collector.',
-            $e->getMessage(),
-            "\n",
-            $e->getTraceAsString()
-         );
-         Session::addMessageAfterRedirect(
-            __('An error occured trying to connect to collector.') . "<br/>" . $e->getMessage(),
-            false,
-            ERROR
-         );
-         return false;
-      }
+      $mailgate->uid = -1;
+      $mailgate->connect();
 
       return $mailgate;
    }
@@ -150,18 +132,27 @@ class PluginMailAnalyzer {
    public static function plugin_pre_item_add_mailanalyzer($parm) {
       global $DB, $mailgate;
 
-      if (isset($parm->input['_mailgate'])) {
+      $mailgateId = $parm->input['_mailgate'] ?? false;
+      if ($mailgateId) {
          // this ticket have been created via email receiver.
-         // and we have the Laminas\Mail\Storage\Message object in the _message key
-         // Analyze emails to establish conversation
+         // Analyzes emails to establish conversation
+
+         // search for 'Thread-Index'?
+         $config = Config::getConfigurationValues('plugin:mailanalyzer');
+         $use_threadindex = isset($config['use_threadindex']) && $config['use_threadindex'];
 
          if (isset($mailgate)) {
             // mailgate has been open by web page call, then use it
             $local_mailgate = $mailgate;
+            // if use of threadindex is true then must open a new mailgate
+            // to be able to get the threadindex of the email
+            if ($use_threadindex) {
+                $local_mailgate = PluginMailAnalyzer::openMailgate($mailgateId);
+            }
          } else {
             // mailgate is not open. Called by cron
             // then locally create a mailgate
-            $local_mailgate = PluginMailAnalyzer::openMailgate($parm->input['_mailgate']);
+            $local_mailgate = PluginMailAnalyzer::openMailgate($mailgateId);
             if ($local_mailgate === false) {
                // can't connect to the mail server, then cancel ticket creation
                $parm->input = false;// []; // empty array...
@@ -169,18 +160,27 @@ class PluginMailAnalyzer {
             }
          }
 
+        if ($use_threadindex) {
+            $local_message = $local_mailgate->getMessage($parm->input['_uid']);
+            $threadindex   = $local_mailgate->getThreadIndex($local_message);
+            if ($threadindex) {
+                // add threadindex to the '_head' of the input
+                $parm->input['_head']['threadindex'] = $threadindex;
+            }
+        }
+
+
          // we must check if this email has not been received yet!
          // test if 'message-id' is in the DB
-         $messageId = $parm->input['_message']->messageid;
-         $mailgateId = $local_mailgate->fields['id'];
+         $messageId = html_entity_decode($parm->input['_head']['message_id']);
          $uid = $parm->input['_uid'];
          $res = $DB->request(
             'glpi_plugin_mailanalyzer_message_id',
             [
             'AND' =>
                [
-               'tickets_id'  => ['!=', 0],
-               'message_id' => $messageId,
+               'tickets_id'        => ['!=', 0],
+               'message_id'        => $messageId,
                'mailcollectors_id' => $mailgateId
                ]
             ]
@@ -198,15 +198,18 @@ class PluginMailAnalyzer {
          }
 
          // search for 'Thread-Index' and 'References'
-         $messages_id = self::getMailReferences($parm->input['_message']);
+         $messages_id = self::getMailReferences(
+             $parm->input['_head']['threadindex'] ?? '',
+             html_entity_decode($parm->input['_head']['references'] ?? '')
+             );
 
          if (count($messages_id) > 0) {
             $res = $DB->request(
                'glpi_plugin_mailanalyzer_message_id',
                ['AND' =>
                   [
-                  'tickets_id'  => ['!=',0],
-                  'message_id' => $messages_id,
+                  'tickets_id'        => ['!=',0],
+                  'message_id'        => $messages_id,
                   'mailcollectors_id' => $mailgateId
                   ],
                   'ORDER' => 'tickets_id DESC'
@@ -219,10 +222,10 @@ class PluginMailAnalyzer {
                if ($locTicket->fields['status'] != CommonITILObject::CLOSED) {
                   $ticketfollowup = new ITILFollowup();
                   $input = $parm->input;
-                  $input['items_id'] = $row['tickets_id'];
-                  $input['users_id'] = $parm->input['_users_id_requester'];
+                  $input['items_id']   = $row['tickets_id'];
+                  $input['users_id']   = $parm->input['_users_id_requester'];
                   $input['add_reopen'] = 1;
-                  $input['itemtype'] = 'Ticket';
+                  $input['itemtype']   = 'Ticket';
 
                   unset($input['urgency']);
                   unset($input['entities_id']);
@@ -281,9 +284,12 @@ class PluginMailAnalyzer {
          // this ticket have been created via email receiver.
          // update the ticket ID for the message_id only for newly created tickets (tickets_id == 0)
 
-         // Are 'Thread-Index' or 'Refrences' present?
-         $messages_id = self::getMailReferences($parm->input['_message']);
-         $messages_id[] = $parm->input['_message']->messageid;
+	      // Are 'Thread-Index' or 'Refrences' present?
+         $messages_id = self::getMailReferences(
+             $parm->input['_head']['threadindex'] ?? '',
+             html_entity_decode($parm->input['_head']['references'] ?? '')
+             );
+         $messages_id[] = html_entity_decode($parm->input['_head']['message_id']);
 
          $DB->update(
             'glpi_plugin_mailanalyzer_message_id',
@@ -307,26 +313,22 @@ class PluginMailAnalyzer {
 
    /**
     * Summary of getMailReferences
-    * @param Laminas\Mail\Storage\Message $message
-    * @return array
+    * @param string $threadindex 
+    * @param string $references 
+    * @return string[]
     */
-   private static function getMailReferences(Laminas\Mail\Storage\Message $message) {
+   private static function getMailReferences(string $threadindex, string $references) {
 
       $messages_id = []; // by default
 
-      $config = Config::getConfigurationValues('plugin:mailanalyzer');
-
-      // search for 'Thread-Index'
-      if (isset($message->threadindex) && isset($config['use_threadindex']) && $config['use_threadindex']) {
-         // exemple of thread-index : ac5rwreerb4gv3pcr8gdflszrsqhoa==
-         // explanations to decode this property: http://msdn.microsoft.com/en-us/library/ee202481%28v=exchg.80%29.aspx
-         $messages_id[] = bin2hex(substr(base64_decode($message->threadindex), 6, 16 ));
+      if (!empty($threadindex)) {
+          $messages_id[] = $threadindex;
       }
 
       // search for 'References'
-      if (isset($message->references)) {
+      if (!empty($references)) {
          // we may have a forwarded email that looks like reply-to
-         if (preg_match_all('/<.*?>/', $message->references, $matches)) {
+         if (preg_match_all('/<.*?>/', $references, $matches)) {
             $messages_id = array_merge($messages_id, $matches[0]);
          }
       }
