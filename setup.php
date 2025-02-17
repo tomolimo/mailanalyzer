@@ -2,7 +2,7 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2024 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
 
 https://www.araymond.com/
 -------------------------------------------------------------------------
@@ -26,9 +26,9 @@ along with this plugin. If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------
  */
 
-define ("PLUGIN_MAILANALYZER_VERSION", "3.2.0");
+define ("PLUGIN_MAILANALYZER_VERSION", "3.2.1");
 // Minimal GLPI version, inclusive
-define('PLUGIN_MAILANALYZER_MIN_GLPI', '10.0');
+define('PLUGIN_MAILANALYZER_MIN_GLPI', '10.0.18');
 // Maximum GLPI version, exclusive
 define('PLUGIN_MAILANALYZER_MAX_GLPI', '10.1');
 
