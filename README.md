@@ -4,7 +4,7 @@ It will combine emails from the same conversation into one Ticket.
 
 It is currently tested with GLPI 0.83.8, 0.85.5, 0.90, 9.1, 9.2, 9.3, 9.4, 9.5 and 10.0
 
-Must be copied into *glpifolder*/plugins/mailanalyzer
+Must be copied into *glpifolder*/plugins/mailanalyzer, or it can be downloaded from the GLPI plugin marketplace.
 
 To be installed and enabled via the plugins configuration page in GLPI.
 
