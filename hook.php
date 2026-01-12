@@ -46,11 +46,11 @@ function plugin_mailanalyzer_install() {
          ENGINE=innoDB;
          ";
 
-         $DB->query($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         $DB->doQuery($query) or die("error creating glpi_plugin_mailanalyzer_message_id " . $DB->error());
    } else {
       if (count($DB->listTables('glpi_plugin_mailanalyzer_message_id', ['engine' => 'MyIsam'])) > 0) {
          $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ENGINE = InnoDB";
-         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         $DB->doQuery($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
       }
    }
    if ($DB->fieldExists("glpi_plugin_mailanalyzer_message_id","mailgate_id"))
@@ -60,20 +60,20 @@ function plugin_mailanalyzer_install() {
                 CHANGE COLUMN `mailgate_id` `mailcollectors_id` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `message_id`,
                 DROP INDEX `message_id`,
                 ADD UNIQUE INDEX `message_id` (`message_id`, `mailcollectors_id`) USING BTREE;";
-      $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+      $DB->doQuery($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
    }
    if (!$DB->fieldExists("glpi_plugin_mailanalyzer_message_id","mailcollectors_id"))
    {
       //STEP - ADD mailcollectors_id
          $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ADD COLUMN `mailcollectors_id` int UNSIGNED NOT NULL DEFAULT 0 AFTER `message_id`";
-         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         $DB->doQuery($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
 
       //STEP - REMOVE UNICITY CONSTRAINT
          $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id DROP INDEX `message_id`";
-         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         $DB->doQuery($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
       //STEP - ADD NEW UNICITY CONSTRAINT
          $query = "ALTER TABLE glpi_plugin_mailanalyzer_message_id ADD UNIQUE KEY `message_id` (`message_id`,`mailcollectors_id`);";
-         $DB->query($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
+         $DB->doQuery($query) or die("error updating ENGINE in glpi_plugin_mailanalyzer_message_id " . $DB->error());
    }
 
    if (!$DB->fieldExists('glpi_plugin_mailanalyzer_message_id', 'tickets_id')) {
@@ -83,7 +83,7 @@ function plugin_mailanalyzer_install() {
                   CHANGE COLUMN `ticket_id` `tickets_id` INT UNSIGNED NOT NULL DEFAULT '0' AFTER `message_id`,
                   DROP INDEX `ticket_id`,
                   ADD INDEX `ticket_id` (`tickets_id`);";
-      $DB->query($query) or die('Cannot alter glpi_plugin_mailanalyzer_message_id table! ' .  $DB->error());
+      $DB->doQuery($query) or die('Cannot alter glpi_plugin_mailanalyzer_message_id table! ' .  $DB->error());
    }
 
    return true;

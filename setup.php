@@ -26,11 +26,11 @@ along with this plugin. If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------
  */
 
-define ("PLUGIN_MAILANALYZER_VERSION", "3.2.2");
+define ("PLUGIN_MAILANALYZER_VERSION", "4.0.0");
 // Minimal GLPI version, inclusive
-define('PLUGIN_MAILANALYZER_MIN_GLPI', '10.0.18');
+define('PLUGIN_MAILANALYZER_MIN_GLPI', '11.0');
 // Maximum GLPI version, exclusive
-define('PLUGIN_MAILANALYZER_MAX_GLPI', '10.1');
+define('PLUGIN_MAILANALYZER_MAX_GLPI', '11.1');
 
 /**
  * Summary of plugin_init_mailanalyzer
