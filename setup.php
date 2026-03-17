@@ -26,98 +26,88 @@ along with this plugin. If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------
  */
 
-define ("PLUGIN_MAILANALYZER_VERSION", "4.0.0");
+use Glpi\Plugin\Hooks;
+use GlpiPlugin\Mailanalyzer\Config;
+use GlpiPlugin\Mailanalyzer\MailAnalyzer;
+
+define('PLUGIN_MAILANALYZER_VERSION', '4.0.0');
+
 // Minimal GLPI version, inclusive
-define('PLUGIN_MAILANALYZER_MIN_GLPI', '11.0');
+define('PLUGIN_MAILANALYZER_MIN_GLPI', '11.0.0');
 // Maximum GLPI version, exclusive
-define('PLUGIN_MAILANALYZER_MAX_GLPI', '11.1');
+define('PLUGIN_MAILANALYZER_MAX_GLPI', '12.0.0');
 
 /**
- * Summary of plugin_init_mailanalyzer
- * Init the hooks of the plugins
+ * Init the hooks of the plugin.
  */
-function plugin_init_mailanalyzer() {
+function plugin_init_mailanalyzer(): void
+{
+    global $PLUGIN_HOOKS;
 
-   global $PLUGIN_HOOKS;
+    $PLUGIN_HOOKS[Hooks::CSRF_COMPLIANT]['mailanalyzer'] = true;
 
-   Plugin::registerClass('PluginMailAnalyzer');
-
-   $PLUGIN_HOOKS['csrf_compliant']['mailanalyzer'] = true;
-
-   $PLUGIN_HOOKS['pre_item_add']['mailanalyzer'] = [
-      'Ticket' => ['PluginMailAnalyzer', 'plugin_pre_item_add_mailanalyzer'],
-   ];
-
-   $PLUGIN_HOOKS['item_add']['mailanalyzer'] = [
-      'Ticket' => ['PluginMailAnalyzer', 'plugin_item_add_mailanalyzer']
-   ];
-
-   $PLUGIN_HOOKS['item_purge']['mailanalyzer'] = [
-      'Ticket' => ['PluginMailAnalyzer', 'plugin_item_purge_mailanalyzer']
-   ];
-
-    if (Session::haveRightsOr("config", [READ, UPDATE])) {
-        Plugin::registerClass('PluginMailanalyzerConfig', ['addtabon' => 'Config']);
-        $PLUGIN_HOOKS['config_page']['mailanalyzer'] = 'front/config.form.php';
+    if (!Plugin::isPluginActive('mailanalyzer')) {
+        return;
     }
 
+    // Register hooks for Ticket lifecycle
+    $PLUGIN_HOOKS[Hooks::PRE_ITEM_ADD]['mailanalyzer'] = [
+        'Ticket' => [MailAnalyzer::class, 'preItemAdd'],
+    ];
+
+    $PLUGIN_HOOKS[Hooks::ITEM_ADD]['mailanalyzer'] = [
+        'Ticket' => [MailAnalyzer::class, 'itemAdd'],
+    ];
+
+    $PLUGIN_HOOKS[Hooks::ITEM_PURGE]['mailanalyzer'] = [
+        'Ticket' => [MailAnalyzer::class, 'itemPurge'],
+    ];
+
+    // Config tab on Setup > General
+    if (Session::haveRightsOr('config', [READ, UPDATE])) {
+        Plugin::registerClass(Config::class, ['addtabon' => \Config::class]);
+        $PLUGIN_HOOKS[Hooks::CONFIG_PAGE]['mailanalyzer'] = 'front/config.form.php';
+    }
 }
 
 
 /**
- * Summary of plugin_version_mailanalyzer
- * Get the name and the version of the plugin
- * @return array
+ * Get the name and the version of the plugin.
  */
-function plugin_version_mailanalyzer() {
-   return [
-      'name'         => __('Mail Analyzer'),
-      'version'      => PLUGIN_MAILANALYZER_VERSION,
-      'author'       => 'Olivier Moron',
-      'license'      => 'GPLv2+',
-      'homepage'     => 'https://github.com/tomolimo/mailanalyzer',
-      'requirements' => [
-         'glpi' => [
-            'min' => PLUGIN_MAILANALYZER_MIN_GLPI,
-            'max' => PLUGIN_MAILANALYZER_MAX_GLPI
-            ]
-         ]
-   ];
+function plugin_version_mailanalyzer(): array
+{
+    return [
+        'name'         => __('Mail Analyzer', 'mailanalyzer'),
+        'version'      => PLUGIN_MAILANALYZER_VERSION,
+        'author'       => 'Olivier Moron',
+        'license'      => 'GPLv2+',
+        'homepage'     => 'https://github.com/tomolimo/mailanalyzer',
+        'requirements' => [
+            'glpi' => [
+                'min' => PLUGIN_MAILANALYZER_MIN_GLPI,
+                'max' => PLUGIN_MAILANALYZER_MAX_GLPI,
+            ],
+            'php' => [
+                'min' => '8.1',
+            ],
+        ],
+    ];
 }
 
 
 /**
- * Summary of plugin_mailanalyzer_check_prerequisites
- * check prerequisites before install : may print errors or add to message after redirect
- * @return bool
+ * Check prerequisites before install.
  */
-function plugin_mailanalyzer_check_prerequisites() {
-   if (version_compare(GLPI_VERSION, PLUGIN_MAILANALYZER_MIN_GLPI, 'lt')
-       && version_compare(GLPI_VERSION, PLUGIN_MAILANALYZER_MAX_GLPI, 'ge')) {
-      echo "This plugin requires GLPI >= " . PLUGIN_MAILANALYZER_MIN_GLPI ." and < " . PLUGIN_MAILANALYZER_MAX_GLPI;
-      return false;
-   } else {
-      if (!class_exists('mailanalyzer_check_prerequisites')) {
-         class mailanalyzer_check_prerequisites { public $attr = 'value'; function __toString() {
-               return 'empty';}};
-      }
-      $loc = new mailanalyzer_check_prerequisites;
-      $loc2 = Toolbox::addslashes_deep($loc);
-      if (is_object($loc2) && $loc->attr === $loc2->attr) {
-         return true;
-      } else {
-         echo "This plugin requires upgraded versions of mailcollector.class.php and toolbox.class.php";
-         return false;
-      }
-   }
+function plugin_mailanalyzer_check_prerequisites(): bool
+{
+    return true;
 }
 
 
 /**
- * Summary of plugin_mailanalyzer_check_config
- * @return bool
+ * Check config.
  */
-function plugin_mailanalyzer_check_config() {
-   return true;
+function plugin_mailanalyzer_check_config(): bool
+{
+    return true;
 }
-

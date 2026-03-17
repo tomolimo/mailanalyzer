@@ -3,33 +3,15 @@
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
 Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
-
-https://www.araymond.com/
 -------------------------------------------------------------------------
-
-LICENSE
-
-This file is part of MailAnalyzer plugin for GLPI.
-
-This file is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This plugin is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this plugin. If not, see <http://www.gnu.org/licenses/>.
+LICENSE: GPLv2+
 --------------------------------------------------------------------------
  */
 
-include ( "../../../inc/includes.php");
-
-/** @var array $CFG_GLPI */
-global $CFG_GLPI;
-
-Session::setActiveTab('Config', 'PluginMailanalyzerConfig$1');
-Html::redirect($CFG_GLPI["root_doc"]."/front/config.form.php");
+/**
+ * GLPI 11: redirigir al tab Mail Analyzer en Setup > General.
+ * El POST lo maneja el core (front/config.form.php del core).
+ * Este archivo solo existe para el hook config_page.
+ */
+Session::setActiveTab('Config', 'GlpiPlugin\Mailanalyzer\Config$1');
+Html::redirect(Toolbox::getItemTypeFormURL('Config'));
