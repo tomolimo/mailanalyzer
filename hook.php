@@ -82,12 +82,12 @@ function plugin_mailanalyzer_install(): bool
             ]);
         }
 
-        // 4 & 5. Forzar UNSIGNED en tickets_id y mailcollectors_id.
+        // 4 & 5. Force UNSIGNED on tickets_id and mailcollectors_id.
         //
-        // Migration::changeField() con tipo 'integer' genera INT(11) firmado
-        // ignorando la opción 'unsigned' => true. Para forzar UNSIGNED correctamente
-        // usamos ALTER TABLE directo con doQueryOrDie(), que es el mismo método
-        // que usa GLPI internamente en sus propias migraciones de unsigned_keys.
+        // Migration::changeField() with type 'integer' generates a signed INT(11),
+        // ignoring the 'unsigned' => true option. To force UNSIGNED correctly we
+        // run a direct ALTER TABLE via doQueryOrDie(), the same method GLPI uses
+        // internally for its own unsigned_keys migrations.
         $alterCols = [];
         if ($DB->fieldExists($table, 'tickets_id')) {
             $alterCols[] = "MODIFY `tickets_id` INT UNSIGNED NOT NULL DEFAULT '0'";
@@ -105,8 +105,8 @@ function plugin_mailanalyzer_install(): bool
         $migration->executeMigration();
     }
 
-    // Inicializar configuración por defecto si no existe aún
-    // Config::setConfigurationValues hace INSERT si no existe, UPDATE si ya existe
+    // Initialize default configuration if it doesn't already exist.
+    // Config::setConfigurationValues does an INSERT if missing, UPDATE otherwise.
     \Config::setConfigurationValues('plugin:mailanalyzer', [
         'use_threadindex' => 0,
     ]);

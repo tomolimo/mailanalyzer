@@ -9,9 +9,8 @@ LICENSE: GPLv2+
  */
 
 /**
- * GLPI 11: redirigir al tab Mail Analyzer en Setup > General.
- * El POST lo maneja el core (front/config.form.php del core).
- * Este archivo solo existe para el hook config_page.
+ * GLPI 11: redirect to the Mail Analyzer tab on Setup > General.
+ * This file only exists to satisfy the Hooks::CONFIG_PAGE hook target.
  */
 Session::setActiveTab('Config', 'GlpiPlugin\Mailanalyzer\Config$1');
 Html::redirect(Toolbox::getItemTypeFormURL('Config'));

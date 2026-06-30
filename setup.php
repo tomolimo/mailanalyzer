@@ -30,7 +30,7 @@ use Glpi\Plugin\Hooks;
 use GlpiPlugin\Mailanalyzer\Config;
 use GlpiPlugin\Mailanalyzer\MailAnalyzer;
 
-define('PLUGIN_MAILANALYZER_VERSION', '4.0.0');
+define('PLUGIN_MAILANALYZER_VERSION', '4.1.0');
 
 // Minimal GLPI version, inclusive
 define('PLUGIN_MAILANALYZER_MIN_GLPI', '11.0.0');

@@ -1,0 +1,49 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: mailanalyzer 4.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-30 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: setup.php:80
+#: src/Config.php:30
+#: src/Config.php:36
+msgid "Mail Analyzer"
+msgstr ""
+
+#: templates/pages/config.html.twig:19
+msgid "Mail Analyzer setup"
+msgstr ""
+
+#: templates/pages/config.html.twig:26
+msgid "Use of Thread index"
+msgstr ""
+
+#: templates/pages/config.html.twig:54
+msgid "When enabled, the Microsoft Thread-Index header is used in addition to References to link emails to existing tickets."
+msgstr ""
+
+#: front/save_config.php:45
+msgid "Configuration updated"
+msgstr ""
+
+#: src/MailCollectorWrapper.php:83
+msgid "Unsupported mail server type: %s."
+msgstr ""
+
+#: src/MailCollectorWrapper.php:162
+msgid "Invalid configuration for %1$s folder in receiver %2$s"
+msgstr ""

@@ -80,7 +80,7 @@ class MailCollectorWrapper extends CommonDBTM
             $storage = Toolbox::getMailServerStorageInstance($config['type'], $params);
             if ($storage === null) {
                 throw new \RuntimeException(
-                    sprintf(__('Unsupported mail server type: %s.'), $config['type'])
+                    sprintf(__('Unsupported mail server type: %s.', 'mailanalyzer'), $config['type'])
                 );
             }
             $this->storage = $storage;
@@ -159,7 +159,7 @@ class MailCollectorWrapper extends CommonDBTM
             } catch (\Throwable $e) {
                 trigger_error(
                     sprintf(
-                        __('Invalid configuration for %1$s folder in receiver %2$s'),
+                        __('Invalid configuration for %1$s folder in receiver %2$s', 'mailanalyzer'),
                         $folder,
                         $this->getName()
                     )

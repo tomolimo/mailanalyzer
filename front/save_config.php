@@ -9,17 +9,17 @@ LICENSE: GPLv2+
  */
 
 /**
- * Endpoint en front/ para guardar la configuración del plugin.
+ * Endpoint under front/ that saves the plugin configuration.
  *
  * GLPI 11 CSRF rules:
- * - front/ y report/ → GLPI verifica $_POST['_glpi_csrf_token'] automáticamente
- *   ANTES de que este archivo se ejecute (en inc/includes.php / Firewall).
- *   Html::closeForm() inyecta ese token en el form → compatible.
+ * - front/ and report/ → GLPI automatically verifies $_POST['_glpi_csrf_token']
+ *   BEFORE this file is executed (in the GLPI Firewall). The Twig template
+ *   renders that token via csrf_token(), so the form is compatible.
  *
- * - ajax/ → GLPI busca el header HTTP 'X-Glpi-Csrf-Token' (no $_POST)
- *   → INCOMPATIBLE con form POST normal.
+ * - ajax/ → GLPI looks for the 'X-Glpi-Csrf-Token' HTTP header instead
+ *   (not $_POST) → incompatible with a regular form POST.
  *
- * Por eso el endpoint está aquí en front/ y no en ajax/.
+ * That's why this endpoint lives in front/ and not in ajax/.
  */
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['update'])) {
@@ -27,14 +27,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['update'])) {
     return;
 }
 
-// El CSRF ya fue validado por el Firewall de GLPI antes de llegar aquí.
-// Solo verificar permisos.
+// CSRF was already validated by the GLPI Firewall before reaching here.
+// Only the user's rights need to be checked.
 if (!Session::haveRight('config', UPDATE)) {
     Html::displayRightError();
     return;
 }
 
-// Guardar configuración
+// Save configuration
 $use_threadindex = isset($_POST['use_threadindex']) ? (int) $_POST['use_threadindex'] : 0;
 
 Config::setConfigurationValues('plugin:mailanalyzer', [

@@ -20,7 +20,7 @@ When an email is sent to GLPI **and** CC'd to other recipients, and those CC rec
 
 | Plugin version | GLPI version |
 |---|---|
-| **4.0.x** | **11.0.x** |
+| **4.1.x** | **11.0.x** |
 | 3.2.x | 10.0.18+ |
 | 2.1.x | 9.5.x |
 

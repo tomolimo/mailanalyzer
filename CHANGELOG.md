@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.1.0] — 2026-06-30
+
+- Removed legacy `inc/config.class.php` and `inc/mailcollector.class.php`, fully superseded by `src/Config.php` and `src/MailCollectorWrapper.php`
+- `src/Config.php` now actually renders `templates/pages/config.html.twig` via `TemplateRenderer` instead of duplicating the form as inline HTML
+- Removed dead `Config::configUpdate()` (never called: the form posts to `front/save_config.php`, not through core's `Config::update()`/`config_class` flow)
+- Added `locales/mailanalyzer.pot` translation template
+- Translated remaining non-English code comments
+
 ## [4.0.0] — 2026-03-16
 
 ### GLPI 11 compatibility

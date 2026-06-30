@@ -24,7 +24,7 @@ use CommonITILObject;
  * - No raw $DB->query(). All DB access uses $DB->request() / insert() / update() / delete().
  * - No Toolbox::addslashes_deep(): GLPI 11 removed auto-sanitization; data is raw.
  * - Hook callbacks are now public static methods referenced via ::class constant in setup.php.
- * - openMailgate() returns PluginMailanalyzerMailCollector (our PSR-4 class).
+ * - openMailgate() returns MailCollectorWrapper (our PSR-4 class).
  */
 class MailAnalyzer
 {
