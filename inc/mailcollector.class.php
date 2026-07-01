@@ -2,7 +2,7 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2026 by Raynet SAS a company of A.Raymond Network.
 
 https://www.araymond.com/
 -------------------------------------------------------------------------
@@ -33,7 +33,8 @@ class PluginMailanalyzerMailCollector extends CommonDBTM
     private $storage;
     public $uid = -1;
 
-    public static function getTable($classname = null) {
+    public static function getTable($classname = null)
+    {
         return MailCollector::getTable();
     }
 
@@ -42,10 +43,10 @@ class PluginMailanalyzerMailCollector extends CommonDBTM
         $config = Toolbox::parseMailServerConnectString($this->fields['host']);
 
         $params = [
-            'host'      => $config['address'],
-            'user'      => $this->fields['login'],
-            'password'  => (new GLPIKey())->decrypt($this->fields['passwd']),
-            'port'      => $config['port']
+            'host' => $config['address'],
+            'user' => $this->fields['login'],
+            'password' => (new GLPIKey())->decrypt($this->fields['passwd']),
+            'port' => $config['port']
         ];
 
         if ($config['ssl']) {
@@ -72,29 +73,30 @@ class PluginMailanalyzerMailCollector extends CommonDBTM
             $this->storage = $storage;
             if ($this->fields['errors'] > 0) {
                 $this->update([
-                    'id'     => $this->getID(),
+                    'id' => $this->getID(),
                     'errors' => 0
                 ]);
             }
         } catch (\Throwable $e) {
             $this->update([
-                'id'     => $this->getID(),
+                'id' => $this->getID(),
                 'errors' => ($this->fields['errors'] + 1)
             ]);
-           // Any errors will cause an Exception.
+            // Any errors will cause an Exception.
             throw $e;
         }
     }
 
     /**
      * Summary of getThreadIndex
-     * @param Message $message 
+     * @param Message $message
      * @return string|null
      */
-    public function getThreadIndex(Message $message) {
+    public function getThreadIndex(Message $message)
+    {
         if (isset($message->threadindex)) {
             if ($val = $message->getHeader('threadindex')) {
-                return bin2hex(substr(base64_decode($val->getFieldValue()), 6, 16 ));
+                return bin2hex(substr(base64_decode($val->getFieldValue()), 6, 16));
             }
         }
         return null;
@@ -102,14 +104,15 @@ class PluginMailanalyzerMailCollector extends CommonDBTM
 
     /**
      * Summary of getMessage
-     * @param mixed $uid 
+     * @param mixed $uid
      * @return Message
      */
-    public function getMessage($uid) : Message {
+    public function getMessage($uid): Message
+    {
         return $this->storage->getMessage($this->storage->getNumberByUniqueId($uid));
     }
 
-        /**
+    /**
      * Delete mail from that mail box
      *
      * @param string $uid    mail UID
@@ -120,7 +123,7 @@ class PluginMailanalyzerMailCollector extends CommonDBTM
     public function deleteMails($uid, $folder = '')
     {
 
-       // Disable move support, POP protocol only has the INBOX folder
+        // Disable move support, POP protocol only has the INBOX folder
         if (strstr($this->fields['host'], "/pop")) {
             $folder = '';
         }
@@ -131,10 +134,10 @@ class PluginMailanalyzerMailCollector extends CommonDBTM
                 $this->storage->moveMessage($this->storage->getNumberByUniqueId($uid), $name);
                 return true;
             } catch (\Throwable $e) {
-               // raise an error and fallback to delete
+                // raise an error and fallback to delete
                 trigger_error(
                     sprintf(
-                    //TRANS: %1$s is the name of the folder, %2$s is the name of the receiver
+                        //TRANS: %1$s is the name of the folder, %2$s is the name of the receiver
                         __('Invalid configuration for %1$s folder in receiver %2$s'),
                         $folder,
                         $this->getName()

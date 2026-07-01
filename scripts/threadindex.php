@@ -2,7 +2,7 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2026 by Raynet SAS a company of A.Raymond Network.
 
 https://www.araymond.com/
 -------------------------------------------------------------------------
@@ -26,4 +26,4 @@ along with this plugin. If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------
  */
 
-echo bin2hex(substr(base64_decode($argv[1]), 6, 16 )) . "\n";
+echo bin2hex(substr(base64_decode($argv[1]), 6, 16)) . "\n";

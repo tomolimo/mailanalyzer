@@ -2,7 +2,7 @@
 Mail Analyzer GLPI Plugin aims at keeping track of email conversations.
 It will combine emails from the same conversation into one Ticket.
 
-It is currently tested with GLPI 0.83.8, 0.85.5, 0.90, 9.1, 9.2, 9.3, 9.4, 9.5 and 10.0
+It is currently tested with GLPI 0.83.8, 0.85.5, 0.90, 9.1, 9.2, 9.3, 9.4, 9.5, 10.0 and 11.0
 
 Must be copied into *glpifolder*/plugins/mailanalyzer, or it can be downloaded from the GLPI plugin marketplace.
 

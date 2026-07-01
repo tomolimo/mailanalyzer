@@ -2,7 +2,7 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2026 by Raynet SAS a company of A.Raymond Network.
 
 https://www.araymond.com/
 -------------------------------------------------------------------------
@@ -26,10 +26,10 @@ along with this plugin. If not, see <http://www.gnu.org/licenses/>.
 --------------------------------------------------------------------------
  */
 
-include ( "../../../inc/includes.php");
+include("../../../inc/includes.php");
 
 /** @var array $CFG_GLPI */
 global $CFG_GLPI;
 
 Session::setActiveTab('Config', 'PluginMailanalyzerConfig$1');
-Html::redirect($CFG_GLPI["root_doc"]."/front/config.form.php");
+Html::redirect($CFG_GLPI["root_doc"] . "/front/config.form.php");
