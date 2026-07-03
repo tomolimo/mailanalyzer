@@ -1,0 +1,24 @@
+{
+    "name": "giovanny07/mailanalyzer",
+    "description": "MailAnalyzer plugin for GLPI — automatically combines CC/reply emails into existing tickets",
+    "type": "glpi-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Olivier Moron",
+            "role": "Original author"
+        }
+    ],
+    "homepage": "https://github.com/giovanny07/mailanalyzer",
+    "require": {
+        "php": ">=8.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "GlpiPlugin\\Mailanalyzer\\": "src/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

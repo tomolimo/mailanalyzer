@@ -1,0 +1,74 @@
+{#
+ -------------------------------------------------------------------------
+ MailAnalyzer plugin for GLPI — config.html.twig
+ Copyright (C) 2011-2026 by Raynet SAS a company of A.Raymond Network.
+ -------------------------------------------------------------------------
+ GLPI 11: self-contained template, rendered via TemplateRenderer.
+ Uses Tabler/Bootstrap 5 utility classes — no custom CSS required.
+ #}
+
+<form name="form"
+      action="{{ config_url|e }}"
+      method="post"
+      data-track-changes="true">
+
+   <div class="card">
+      <div class="card-header">
+         <h3 class="card-title">
+            <i class="ti ti-mail-search me-2"></i>
+            {{ __('Mail Analyzer setup', 'mailanalyzer') }}
+         </h3>
+      </div>
+
+      <div class="card-body">
+         <div class="row mb-3 align-items-center">
+            <label class="col-sm-4 col-form-label fw-bold" for="use_threadindex">
+               {{ __('Use of Thread index', 'mailanalyzer') }}
+            </label>
+            <div class="col-sm-8">
+               <div class="form-check form-switch mt-1">
+                  {#
+                     The hidden field with value="0" guarantees the POST always
+                     sends use_threadindex, even when the checkbox is unchecked.
+                     The checkbox (value="1") overrides it when checked. Without
+                     this, front/save_config.php would not receive the field at
+                     all and the toggle could never be switched off.
+                  #}
+                  <input type="hidden" name="use_threadindex" value="0">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         name="use_threadindex"
+                         id="use_threadindex"
+                         value="1"
+                         {% if use_threadindex %}checked{% endif %}
+                         {% if not can_update %}disabled{% endif %}>
+                  <label class="form-check-label" for="use_threadindex">
+                     {% if use_threadindex %}
+                        {{ __('Yes') }}
+                     {% else %}
+                        {{ __('No') }}
+                     {% endif %}
+                  </label>
+               </div>
+               <small class="text-muted d-block mt-1">
+                  {{ __('When enabled, the Microsoft Thread-Index header is used in addition to References to link emails to existing tickets.', 'mailanalyzer') }}
+               </small>
+            </div>
+         </div>
+      </div>
+
+      {% if can_update %}
+      <div class="card-footer d-flex">
+         <button type="submit"
+                 name="update"
+                 class="btn btn-primary ms-auto">
+            <i class="ti ti-device-floppy me-1"></i>
+            {{ _x('button', 'Save') }}
+         </button>
+      </div>
+      {% endif %}
+   </div>
+
+   <input type="hidden" name="_glpi_csrf_token" value="{{ csrf_token() }}">
+
+</form>
