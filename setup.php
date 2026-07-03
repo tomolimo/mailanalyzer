@@ -2,7 +2,7 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2026 by Raynet SAS a company of A.Raymond Network.
 
 https://www.araymond.com/
 -------------------------------------------------------------------------
@@ -96,10 +96,17 @@ function plugin_version_mailanalyzer(): array
 
 
 /**
- * Check prerequisites before install.
+ * Check prerequisites before install: may print errors or add a message after redirect.
  */
 function plugin_mailanalyzer_check_prerequisites(): bool
 {
+    if (
+        version_compare(GLPI_VERSION, PLUGIN_MAILANALYZER_MIN_GLPI, 'lt')
+        || version_compare(GLPI_VERSION, PLUGIN_MAILANALYZER_MAX_GLPI, 'ge')
+    ) {
+        echo 'This plugin requires GLPI >= ' . PLUGIN_MAILANALYZER_MIN_GLPI . ' and < ' . PLUGIN_MAILANALYZER_MAX_GLPI;
+        return false;
+    }
     return true;
 }
 

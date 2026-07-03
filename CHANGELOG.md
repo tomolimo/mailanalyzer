@@ -1,12 +1,17 @@
 # Changelog
 
-## [4.1.0] — 2026-06-30
+## [4.1.0] — 2026-07-03
 
 - Removed legacy `inc/config.class.php` and `inc/mailcollector.class.php`, fully superseded by `src/Config.php` and `src/MailCollectorWrapper.php`
 - `src/Config.php` now actually renders `templates/pages/config.html.twig` via `TemplateRenderer` instead of duplicating the form as inline HTML
 - Removed dead `Config::configUpdate()` (never called: the form posts to `front/save_config.php`, not through core's `Config::update()`/`config_class` flow)
 - Added `locales/mailanalyzer.pot` translation template
 - Translated remaining non-English code comments
+- Rebased onto upstream master (4.0.1/4.0.2), carrying forward:
+  - `message_id` column widened from `VARCHAR(255)` to `VARCHAR(512)`
+  - Schema upgrade steps in `plugin_mailanalyzer_install()` now gated behind a stored `dbversion`, so they only run once instead of on every activation/update
+  - Fixed a version-bounds check in `plugin_mailanalyzer_check_prerequisites()` that could never trigger (`&&` of two mutually exclusive conditions, now `||`)
+  - Default `use_threadindex` config is now only seeded when unset, so upgrading no longer silently resets a saved value back to 0
 
 ## [4.0.0] — 2026-03-16
 

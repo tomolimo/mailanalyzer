@@ -2,11 +2,19 @@
 /*
 -------------------------------------------------------------------------
 MailAnalyzer plugin for GLPI
-Copyright (C) 2011-2025 by Raynet SAS a company of A.Raymond Network.
+Copyright (C) 2011-2026 by Raynet SAS a company of A.Raymond Network.
 -------------------------------------------------------------------------
 LICENSE: GPLv2+
 --------------------------------------------------------------------------
  */
+
+/**
+ * Schema version tracked in glpi_configs['plugin:mailanalyzer']['dbversion'].
+ * Bump this whenever the table structure changes, so plugin_mailanalyzer_install()
+ * only re-runs the (potentially expensive) ALTER TABLE steps once per schema change,
+ * instead of on every plugin activation/update.
+ */
+const PLUGIN_MAILANALYZER_DB_VERSION = '1.1.0';
 
 /**
  * Install hook — compatible with GLPI 11.
@@ -39,7 +47,7 @@ function plugin_mailanalyzer_install(): bool
         $DB->doQueryOrDie(
             "CREATE TABLE `{$table}` (
                 `id`                INT UNSIGNED     NOT NULL AUTO_INCREMENT,
-                `message_id`        VARCHAR(255) COLLATE {$collation} NOT NULL DEFAULT '0',
+                `message_id`        VARCHAR(512) COLLATE {$collation} NOT NULL DEFAULT '0',
                 `tickets_id`        INT UNSIGNED     NOT NULL DEFAULT '0',
                 `mailcollectors_id` INT UNSIGNED     NOT NULL DEFAULT '0',
                 PRIMARY KEY (`id`),
@@ -50,8 +58,14 @@ function plugin_mailanalyzer_install(): bool
               COLLATE={$collation};",
             "Cannot create {$table}"
         );
-    } else {
+
+        \Config::setConfigurationValues('plugin:mailanalyzer', [
+            'dbversion' => PLUGIN_MAILANALYZER_DB_VERSION,
+        ]);
+    } elseif (\Config::getConfigurationValue('plugin:mailanalyzer', 'dbversion') !== PLUGIN_MAILANALYZER_DB_VERSION) {
         // ── Upgrade path ──────────────────────────────────────────────────────
+        // Only re-run these (potentially expensive) schema fixes when the stored
+        // dbversion is behind, instead of on every install()/update() call.
 
         // 1. Rename legacy mailgate_id → mailcollectors_id
         if ($DB->fieldExists($table, 'mailgate_id') && !$DB->fieldExists($table, 'mailcollectors_id')) {
@@ -102,14 +116,30 @@ function plugin_mailanalyzer_install(): bool
             );
         }
 
+        // 6. Widen message_id from VARCHAR(255) to VARCHAR(512) for older installs
+        // (some mail servers generate Message-ID / Thread-Index values longer than 255 chars).
+        $fields = $DB->listFields($table, false);
+        if (isset($fields['message_id']) && stripos($fields['message_id']['Type'], 'varchar(255)') !== false) {
+            $DB->doQueryOrDie(
+                "ALTER TABLE `{$table}` MODIFY `message_id` VARCHAR(512) NOT NULL DEFAULT '0'",
+                "Cannot widen message_id in {$table}"
+            );
+        }
+
         $migration->executeMigration();
+
+        \Config::setConfigurationValues('plugin:mailanalyzer', [
+            'dbversion' => PLUGIN_MAILANALYZER_DB_VERSION,
+        ]);
     }
 
-    // Initialize default configuration if it doesn't already exist.
-    // Config::setConfigurationValues does an INSERT if missing, UPDATE otherwise.
-    \Config::setConfigurationValues('plugin:mailanalyzer', [
-        'use_threadindex' => 0,
-    ]);
+    // Initialize default configuration only if it doesn't already exist, so an
+    // upgrade never resets a value the admin has already saved.
+    if (\Config::getConfigurationValue('plugin:mailanalyzer', 'use_threadindex') === null) {
+        \Config::setConfigurationValues('plugin:mailanalyzer', [
+            'use_threadindex' => 0,
+        ]);
+    }
 
     return true;
 }
