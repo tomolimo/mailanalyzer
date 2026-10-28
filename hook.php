@@ -189,17 +189,14 @@ class PluginMailAnalyzer
             // test if 'message-id' is in the DB
             $messageId = html_entity_decode($parm->input['_head']['message_id']);
             $uid = $parm->input['_uid'];
-            $res = $DB->request(
-                'glpi_plugin_mailanalyzer_message_id',
-                [
-                    'AND' =>
-                        [
-                            'tickets_id' => ['!=', 0],
-                            'message_id' => $messageId,
-                            'mailcollectors_id' => $mailgateId
-                        ]
+            $res = $DB->request([
+                'FROM'  => 'glpi_plugin_mailanalyzer_message_id',
+                'WHERE' => [
+                    'tickets_id'        => ['!=', 0],
+                    'message_id'        => $messageId,
+                    'mailcollectors_id' => $mailgateId
                 ]
-            );
+            ]);
             if ($row = $res->current()) {
                 // email already received
                 // must prevent ticket creation
@@ -219,18 +216,15 @@ class PluginMailAnalyzer
             );
 
             if (count($messages_id) > 0) {
-                $res = $DB->request(
-                    'glpi_plugin_mailanalyzer_message_id',
-                    [
-                        'AND' =>
-                            [
-                                'tickets_id' => ['!=', 0],
-                                'message_id' => $messages_id,
-                                'mailcollectors_id' => $mailgateId
-                            ],
-                        'ORDER' => 'tickets_id DESC'
-                    ]
-                );
+                $res = $DB->request([
+                    'FROM'  => 'glpi_plugin_mailanalyzer_message_id',
+                    'WHERE' => [
+                        'tickets_id'        => ['!=', 0],
+                        'message_id'        => $messages_id,
+                        'mailcollectors_id' => $mailgateId
+                    ],
+                    'ORDER' => 'tickets_id DESC'
+                ]);
                 if ($row = $res->current()) {
                     // TicketFollowup creation only if ticket status is not closed
                     $locTicket = new Ticket();
@@ -281,7 +275,10 @@ class PluginMailAnalyzer
             // this is a new ticket
             // then add references and message_id to DB
             foreach ($messages_id as $ref) {
-                $res = $DB->request('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref, 'mailcollectors_id' => $mailgateId]);
+                $res = $DB->request([
+                    'FROM'  => 'glpi_plugin_mailanalyzer_message_id',
+                    'WHERE' => ['message_id' => $ref, 'mailcollectors_id' => $mailgateId]
+                ]);
                 if (count($res) <= 0) {
                     $DB->insert('glpi_plugin_mailanalyzer_message_id', ['message_id' => $ref, 'mailcollectors_id' => $mailgateId]);
                 }
@@ -370,4 +367,3 @@ class PluginMailAnalyzer
         $DB->delete('glpi_plugin_mailanalyzer_message_id', ['tickets_id' => $item->getID()]);
     }
 }
-
